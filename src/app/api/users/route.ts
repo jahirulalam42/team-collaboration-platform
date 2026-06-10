@@ -1,3 +1,4 @@
+import { auth } from "../../../../lib/auth";
 import prisma from "../../../../lib/prisma";
 
 export async function GET(request: Request) {
@@ -12,20 +13,18 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  // Parse the request body
   const body = await request.json();
-  const { name, email } = body;
 
-  // e.g. Insert new user into your DB
-  const newUser = await prisma.user.create({
-    data: {
-      email,
-      name,
+  const result = await auth.api.signUpEmail({
+    body: {
+      name: body.name,
+      email: body.email,
+      password: body.password,
+      callbackURL: "/",
     },
   });
 
-  return new Response(JSON.stringify(newUser), {
+  return Response.json(result, {
     status: 201,
-    headers: { "Content-Type": "application/json" },
   });
 }
