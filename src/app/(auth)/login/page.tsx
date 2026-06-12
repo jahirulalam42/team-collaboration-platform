@@ -22,7 +22,7 @@ export default async function LoginPage({
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
-      <LoginForm callbackUrl={searchParams.callbackUrl ?? "/"} />
+      <LoginForm callbackUrl={searchParams?.callbackUrl ?? "/"} />
     </div>
   );
 }

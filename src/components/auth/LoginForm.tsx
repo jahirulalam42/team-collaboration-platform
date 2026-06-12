@@ -30,6 +30,12 @@ export function LoginForm({ callbackUrl = "/" }: LoginFormProps) {
     formState: { errors, isSubmitting },
   } = useForm<LoginInput>({ resolver: zodResolver(loginSchema) });
 
+  const signIn = async () => {
+    const data = await authClient.signIn.social({
+      provider: "google",
+    });
+  };
+
   const onSubmit = async (loginData: LoginInput) => {
     setServerError(null);
 
@@ -60,7 +66,9 @@ export function LoginForm({ callbackUrl = "/" }: LoginFormProps) {
       {/* Google OAuth */}
       <button
         type="button"
-        // onClick={() => signIn("google", { callbackUrl })}
+        onClick={() => {
+          signIn();
+        }}
         className="flex w-full items-center justify-center gap-2.5 rounded-lg border border-border bg-background px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted"
       >
         <GoogleIcon />
