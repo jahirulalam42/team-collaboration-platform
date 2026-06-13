@@ -1,8 +1,8 @@
 import { headers } from "next/headers";
-import { auth } from "../../lib/auth";
-import { authClient } from "../../lib/auth-client";
-import prisma from "../../lib/prisma";
+import { auth } from "@/lib/auth";
+
 import { Button } from "@/components/ui/button";
+import prisma from "@/lib/prisma";
 
 export default async function Home() {
   const users = await prisma.user.findMany();

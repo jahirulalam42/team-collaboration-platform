@@ -12,7 +12,7 @@ import {
   loginSchema,
   type LoginInput,
 } from "../../../lib/validations/authValidation";
-import { cn } from "@/lib/utils";
+import { cn } from "../../../lib/utils";
 import { authClient } from "../../../lib/auth-client";
 
 interface LoginFormProps {

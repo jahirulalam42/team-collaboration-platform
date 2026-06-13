@@ -13,6 +13,21 @@ datasource db {
 }
 
 
+// ========== Enums (from workspace schema) ==========
+enum WorkspaceRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+}
+
+// ========== Auth Models (your existing schema) ==========
 model User {
   id            String    @id
   name          String
@@ -21,8 +36,18 @@ model User {
   image         String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+  
+  // Optional fields added from workspace schema
+  password      String?
+  bio           String?
+  
   sessions      Session[]
   accounts      Account[]
+  
+  // Workspace relations (added)
+  workspaces      WorkspaceMember[]
+  sentInvites     WorkspaceInvite[] @relation("InvitedBy")
+  receivedInvites WorkspaceInvite[] @relation("InvitedUser")
 
   @@unique([email])
   @@map("user")
@@ -65,14 +90,63 @@ model Account {
 }
 
 model Verification {
-  id         String   @id
+  id         String    @id @default(cuid())
   identifier String
-  value      String
+  value      String   @unique
   expiresAt  DateTime
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
   @@index([identifier])
   @@map("verification")
+}
+
+// ========== Workspace Models (added) ==========
+model Workspace {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  logo        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members WorkspaceMember[]
+  invites WorkspaceInvite[]
+
+  @@map("workspaces")
+}
+
+model WorkspaceMember {
+  id          String        @id @default(cuid())
+  workspaceId String
+  userId      String
+  role        WorkspaceRole @default(MEMBER)
+  joinedAt    DateTime      @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@map("workspace_members")
+}
+
+model WorkspaceInvite {
+  id            String        @id @default(cuid())
+  workspaceId   String
+  email         String
+  role          WorkspaceRole @default(MEMBER)
+  token         String        @unique @default(cuid())
+  status        InviteStatus  @default(PENDING)
+  expiresAt     DateTime
+  createdAt     DateTime      @default(now())
+  invitedById   String
+  invitedUserId String?
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  invitedBy   User      @relation("InvitedBy", fields: [invitedById], references: [id])
+  invitedUser User?     @relation("InvitedUser", fields: [invitedUserId], references: [id])
+
+  @@map("workspace_invites")
 }
 

@@ -1,0 +1,133 @@
+// lib/auth-utils.ts
+
+import prisma from "@/lib/prisma";
+import bcrypt from "bcryptjs";
+import { Resend } from "resend";
+import { randomBytes } from "crypto";
+
+// Initialize Resend with your API key
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+// ---------- Password hashing ----------
+export async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, 10);
+}
+
+export async function comparePassword(
+  plain: string,
+  hashed: string
+): Promise<boolean> {
+  return bcrypt.compare(plain, hashed);
+}
+
+// ---------- Verification token helpers ----------
+/**
+ * Creates a verification token for a user.
+ * @param userId - The user's ID
+ * @param operation - e.g., "password_reset", "email_verification"
+ * @param expiresInHours - Token validity in hours (default 1)
+ * @returns The generated token string
+ */
+export async function createVerificationToken(
+  userId: string,
+  operation: string,
+  expiresInHours = 1
+): Promise<string> {
+  const token = randomBytes(32).toString("hex");
+  const expiresAt = new Date(Date.now() + expiresInHours * 60 * 60 * 1000);
+
+  await prisma.verification.create({
+    data: {
+      identifier: `${operation}:${userId}`,
+      value: token,
+      expiresAt,
+    },
+  });
+
+  return token;
+}
+
+/**
+ * Validate a verification token for a specific operation (e.g., "password_reset", "email_verification")
+ * Returns an object with:
+ * - valid: boolean
+ * - error: string | null
+ * - record: the Verification record (if found and valid) or null
+ */
+export async function validateVerificationToken(
+  token: string,
+  operation: string
+): Promise<{
+  valid: boolean;
+  error: string | null;
+  record: { userId: string } | null;
+}> {
+  // Find the verification record by token (stored in 'value' field)
+  const verification = await prisma.verification.findUnique({
+    where: { value: token },
+  });
+
+  if (!verification) {
+    return {
+      valid: false,
+      error: "Invalid token",
+      record: null,
+    };
+  }
+
+  // Check if token has expired
+  if (verification.expiresAt < new Date()) {
+    return {
+      valid: false,
+      error: "Token has expired",
+      record: null,
+    };
+  }
+
+  // The identifier format should be "operation:userId" (e.g., "password_reset:clxyz123")
+  const [op, userId] = verification.identifier.split(":");
+
+  if (op !== operation) {
+    return {
+      valid: false,
+      error: "Token used for wrong purpose",
+      record: null,
+    };
+  }
+
+  if (!userId) {
+    return {
+      valid: false,
+      error: "Invalid token format",
+      record: null,
+    };
+  }
+
+  return {
+    valid: true,
+    error: null,
+    record: { userId },
+  };
+}
+
+// ---------- Email sender using Resend ----------
+/**
+ * Sends a password reset email to the user using Resend.
+ * @param email - Recipient email address
+ * @param token - The password reset token (to be included in the link)
+ */
+export async function sendPasswordResetEmail(email: string, token: string) {
+  const resetUrl = `${process.env.NEXTAUTH_URL}/reset-password?token=${token}`;
+
+  await resend.emails.send({
+    from: process.env.RESEND_FROM_EMAIL || "noreply@yourdomain.com",
+    to: email,
+    subject: "Reset your password",
+    html: `
+      <p>You requested a password reset.</p>
+      <p>Click the link below to reset your password (valid for 1 hour):</p>
+      <a href="${resetUrl}">${resetUrl}</a>
+      <p>If you did not request this, please ignore this email.</p>
+    `,
+  });
+}

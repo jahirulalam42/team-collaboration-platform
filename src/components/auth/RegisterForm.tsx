@@ -12,7 +12,7 @@ import {
   registerSchema,
   type RegisterInput,
 } from "../../../lib/validations/authValidation";
-import { cn } from "@/lib/utils";
+import { cn } from "../../../lib/utils";
 import { authClient } from "../../../lib/auth-client";
 
 export function RegisterForm() {
