@@ -1,8 +1,8 @@
 // app/(auth)/login/page.tsx
 import { redirect } from "next/navigation";
 import { LoginForm } from "@/components/auth/LoginForm";
-import { authClient } from "../../../../lib/auth-client";
-import { auth } from "../../../../lib/auth";
+import { authClient } from "@/lib/auth-client";
+import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 
 export const metadata = { title: "Sign in — SyncSpace" };

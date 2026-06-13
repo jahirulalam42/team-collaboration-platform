@@ -40,7 +40,7 @@ export async function POST(req: Request) {
         data: { password: hashedPassword },
       }),
       prisma.verification.delete({
-        where: { value: token },
+        where: { id: record.verificationId }, // ← delete by ID, not value
       }),
     ]);
 

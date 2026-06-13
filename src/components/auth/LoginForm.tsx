@@ -8,12 +8,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { Loader2, Eye, EyeOff } from "lucide-react";
-import {
-  loginSchema,
-  type LoginInput,
-} from "../../../lib/validations/authValidation";
-import { cn } from "../../../lib/utils";
-import { authClient } from "../../../lib/auth-client";
+import { loginSchema, type LoginInput } from "@/lib/validations/authValidation";
+import { cn } from "@/lib/utils";
+import { authClient } from "@/lib/auth-client";
 
 interface LoginFormProps {
   callbackUrl?: string;

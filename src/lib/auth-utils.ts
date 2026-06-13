@@ -60,53 +60,28 @@ export async function validateVerificationToken(
 ): Promise<{
   valid: boolean;
   error: string | null;
-  record: { userId: string } | null;
+  record: { userId: string; verificationId: string } | null; // ← added verificationId
 }> {
-  // Find the verification record by token (stored in 'value' field)
   const verification = await prisma.verification.findUnique({
     where: { value: token },
   });
 
   if (!verification) {
-    return {
-      valid: false,
-      error: "Invalid token",
-      record: null,
-    };
+    return { valid: false, error: "Invalid token", record: null };
   }
-
-  // Check if token has expired
   if (verification.expiresAt < new Date()) {
-    return {
-      valid: false,
-      error: "Token has expired",
-      record: null,
-    };
+    return { valid: false, error: "Token has expired", record: null };
   }
 
-  // The identifier format should be "operation:userId" (e.g., "password_reset:clxyz123")
   const [op, userId] = verification.identifier.split(":");
-
-  if (op !== operation) {
-    return {
-      valid: false,
-      error: "Token used for wrong purpose",
-      record: null,
-    };
-  }
-
-  if (!userId) {
-    return {
-      valid: false,
-      error: "Invalid token format",
-      record: null,
-    };
+  if (op !== operation || !userId) {
+    return { valid: false, error: "Invalid token", record: null };
   }
 
   return {
     valid: true,
     error: null,
-    record: { userId },
+    record: { userId, verificationId: verification.id }, // ← return ID
   };
 }
 

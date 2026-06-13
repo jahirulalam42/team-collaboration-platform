@@ -1,5 +1,5 @@
-import { auth } from "../../../../lib/auth";
-import prisma from "../../../../lib/prisma";
+import { auth } from "@/lib/auth";
+import prisma from "@/lib/prisma";
 
 export async function GET(request: Request) {
   // For example, fetch data from your DB here

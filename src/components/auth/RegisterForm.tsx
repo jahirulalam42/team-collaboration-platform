@@ -11,9 +11,9 @@ import { Loader2, Eye, EyeOff, CheckCircle2 } from "lucide-react";
 import {
   registerSchema,
   type RegisterInput,
-} from "../../../lib/validations/authValidation";
-import { cn } from "../../../lib/utils";
-import { authClient } from "../../../lib/auth-client";
+} from "@/lib/validations/authValidation";
+import { cn } from "@/lib/utils";
+import { authClient } from "@/lib/auth-client";
 
 export function RegisterForm() {
   const router = useRouter();

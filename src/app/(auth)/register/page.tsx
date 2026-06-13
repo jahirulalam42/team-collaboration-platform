@@ -1,7 +1,7 @@
 // app/(auth)/register/page.tsx
 import { redirect } from "next/navigation";
 import { RegisterForm } from "@/components/auth/RegisterForm";
-import { auth } from "../../../../lib/auth";
+import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 
 export const metadata = { title: "Create account — SyncSpace" };
