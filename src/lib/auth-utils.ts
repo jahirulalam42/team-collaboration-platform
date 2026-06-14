@@ -106,3 +106,47 @@ export async function sendPasswordResetEmail(email: string, token: string) {
     `,
   });
 }
+
+/**
+ * Sends a workspace invitation email using Resend.
+ * @param to - Recipient email address
+ * @param inviteToken - The unique invite token
+ * @param workspaceId - Workspace ID (to be included in the accept link)
+ * @param workspaceName - Name of the workspace
+ * @param inviterName - Name of the person who sent the invite
+ */
+export async function sendInviteEmail({
+  to,
+  inviteToken,
+  workspaceId,
+  workspaceName,
+  inviterName,
+}: {
+  to: string;
+  inviteToken: string;
+  workspaceId: string;
+  workspaceName: string;
+  inviterName: string;
+}) {
+  const acceptUrl = `${process.env.NEXTAUTH_URL}/invite/accept?workspaceId=${workspaceId}&token=${inviteToken}`;
+
+  await resend.emails.send({
+    from: process.env.RESEND_FROM_EMAIL || "noreply@yourdomain.com",
+    to,
+    subject: `You're invited to join ${workspaceName} on SyncSpace`,
+    html: `
+      <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto;">
+        <h2>You're invited!</h2>
+        <p><strong>${inviterName}</strong> has invited you to join the workspace <strong>${workspaceName}</strong> on SyncSpace.</p>
+        <p>Click the button below to accept the invitation:</p>
+        <a href="${acceptUrl}" style="display: inline-block; background-color: #3b82f6; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; margin: 16px 0;">Accept Invitation</a>
+        <p>If the button doesn't work, copy and paste this link into your browser:</p>
+        <p><code style="background: #f3f4f6; padding: 8px; display: block; word-break: break-all;">${acceptUrl}</code></p>
+        <p>This invite expires in <strong>7 days</strong>.</p>
+        <p>If you don't have a SyncSpace account yet, you'll be prompted to create one before joining.</p>
+        <hr />
+        <p style="font-size: 12px; color: #6b7280;">You received this email because someone invited you to a workspace on SyncSpace.</p>
+      </div>
+    `,
+  });
+}
