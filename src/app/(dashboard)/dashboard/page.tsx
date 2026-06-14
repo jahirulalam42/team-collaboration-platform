@@ -111,7 +111,7 @@ export default function DashboardPage() {
         </Card>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {workspaces.map((ws) => (
+          {workspaces?.map((ws) => (
             <Link key={ws.id} href={`/workspace/${ws.id}`}>
               <Card className="h-full transition-all hover:border-primary/40 hover:shadow-md">
                 <CardHeader className="flex flex-row items-center gap-3">

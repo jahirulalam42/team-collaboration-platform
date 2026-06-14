@@ -1,33 +1,44 @@
-// app/(dashboard)/layout.tsx
 "use client";
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Menu, X, LayoutDashboard, Users, User, LogOut } from "lucide-react";
+import { Menu, X, LayoutDashboard, User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
-import {
-  useSession,
-  SessionProvider,
-} from "@/components/providers/SessionProvider";
+import { useAppDispatch, useAppSelector } from "@/app/store/hooks";
+import { fetchSession, logout } from "@/app/store/slices/sessionSlice";
 
-// Inner component that uses session
-function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
-  const { session, isLoading } = useSession();
+  const dispatch = useAppDispatch();
+  const { data: session, loading } = useAppSelector((state) => state.session);
 
-  // Redirect if not authenticated (client-side protection)
+  // Fetch session on mount
   useEffect(() => {
-    if (!isLoading && !session) {
+    dispatch(fetchSession());
+  }, [dispatch]);
+
+  // Redirect if not authenticated
+  useEffect(() => {
+    if (!loading && !session) {
       router.push("/login");
     }
-  }, [session, isLoading, router]);
+  }, [session, loading, router]);
 
-  if (isLoading) {
+  const handleLogout = async () => {
+    await dispatch(logout());
+    router.push("/login");
+  };
+
+  if (loading) {
     return (
       <div className="flex h-screen items-center justify-center">
         Loading...
@@ -104,10 +115,8 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                   {session.user?.email}
                 </p>
               </div>
-              <Button variant="ghost" size="icon" asChild>
-                <Link href="/api/auth/signout">
-                  <LogOut className="h-4 w-4" />
-                </Link>
+              <Button variant="ghost" size="icon" onClick={handleLogout}>
+                <LogOut className="h-4 w-4" />
               </Button>
             </div>
           </div>
@@ -132,18 +141,5 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         <main className="flex-1 overflow-auto p-4 md:p-6">{children}</main>
       </div>
     </div>
-  );
-}
-
-// Wrap with SessionProvider
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  return (
-    <SessionProvider>
-      <DashboardLayoutInner>{children}</DashboardLayoutInner>
-    </SessionProvider>
   );
 }

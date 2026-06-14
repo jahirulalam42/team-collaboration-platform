@@ -54,7 +54,7 @@ export default async function AcceptInvitePage({
   }
 
   // Call the internal API to accept the invite
-  const baseUrl = process.env.NEXTAUTH_URL;
+  const baseUrl = process.env.BETTER_AUTH_URL;
   const res = await fetch(
     `${baseUrl}/api/workspace/${workspaceId}/invite?token=${token}`,
     {

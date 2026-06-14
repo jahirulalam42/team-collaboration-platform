@@ -4,7 +4,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Provider as ReduxProvider } from "react-redux";
 import { useState } from "react";
-import store from "./store/store";
+import { store } from "./store/store";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   // One QueryClient instance per session (not shared across users in SSR)

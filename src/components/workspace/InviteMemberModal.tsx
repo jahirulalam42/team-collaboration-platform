@@ -4,7 +4,10 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { X, Loader2, Mail } from "lucide-react";
-import { inviteMemberSchema, type InviteMemberInput } from "@/lib/validations/workspace";
+import {
+  inviteMemberSchema,
+  type InviteMemberInput,
+} from "@/lib/validations/workspace";
 import { useInviteMember } from "@/hooks/useWorkspace";
 import { cn } from "@/lib/utils";
 
@@ -15,7 +18,12 @@ interface Props {
   workspaceName: string;
 }
 
-export function InviteMemberModal({ open, onClose, workspaceId, workspaceName }: Props) {
+export function InviteMemberModal({
+  open,
+  onClose,
+  workspaceId,
+  workspaceName,
+}: Props) {
   const { mutateAsync, isPending } = useInviteMember(workspaceId);
 
   const {
@@ -23,7 +31,13 @@ export function InviteMemberModal({ open, onClose, workspaceId, workspaceName }:
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<InviteMemberInput>({ resolver: zodResolver(inviteMemberSchema) });
+  } = useForm<InviteMemberInput>({
+    resolver: zodResolver(inviteMemberSchema),
+    defaultValues: {
+      email: "",
+      role: "MEMBER", // ✅ provide default value to avoid undefined
+    },
+  });
 
   const onSubmit = async (data: InviteMemberInput) => {
     await mutateAsync(data);
@@ -35,17 +49,26 @@ export function InviteMemberModal({ open, onClose, workspaceId, workspaceName }:
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
 
       <div className="relative z-10 w-full max-w-md rounded-xl border border-border bg-background p-6 shadow-xl">
         <div className="flex items-center justify-between mb-5">
           <div>
             <h2 className="text-lg font-semibold">Invite member</h2>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Invite someone to <span className="font-medium text-foreground">{workspaceName}</span>
+              Invite someone to{" "}
+              <span className="font-medium text-foreground">
+                {workspaceName}
+              </span>
             </p>
           </div>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted transition-colors">
+          <button
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted transition-colors"
+          >
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -66,7 +89,9 @@ export function InviteMemberModal({ open, onClose, workspaceId, workspaceName }:
                 {...register("email")}
               />
             </div>
-            {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
+            {errors.email && (
+              <p className="text-xs text-destructive">{errors.email.message}</p>
+            )}
           </div>
 
           <div className="space-y-1.5">
@@ -76,20 +101,34 @@ export function InviteMemberModal({ open, onClose, workspaceId, workspaceName }:
               {...register("role")}
             >
               <option value="MEMBER">Member — can view and edit boards</option>
-              <option value="ADMIN">Admin — can manage members and settings</option>
+              <option value="ADMIN">
+                Admin — can manage members and settings
+              </option>
             </select>
+            {errors.role && (
+              <p className="text-xs text-destructive">{errors.role.message}</p>
+            )}
           </div>
 
           <div className="rounded-lg bg-muted/50 px-4 py-3 text-xs text-muted-foreground">
-            The invite link expires in <span className="font-medium text-foreground">7 days</span>.
-            The recipient must have or create a SyncSpace account.
+            The invite link expires in{" "}
+            <span className="font-medium text-foreground">7 days</span>. The
+            recipient must have or create a SyncSpace account.
           </div>
 
           <div className="flex gap-3 pt-1">
-            <button type="button" onClick={onClose} className="flex h-10 flex-1 items-center justify-center rounded-lg border border-border text-sm font-medium hover:bg-muted transition-colors">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex h-10 flex-1 items-center justify-center rounded-lg border border-border text-sm font-medium hover:bg-muted transition-colors"
+            >
               Cancel
             </button>
-            <button type="submit" disabled={isPending} className="flex h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-primary text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60 transition-colors">
+            <button
+              type="submit"
+              disabled={isPending}
+              className="flex h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-primary text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60 transition-colors"
+            >
               {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
               {isPending ? "Sending…" : "Send invite"}
             </button>

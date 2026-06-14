@@ -92,7 +92,7 @@ export async function validateVerificationToken(
  * @param token - The password reset token (to be included in the link)
  */
 export async function sendPasswordResetEmail(email: string, token: string) {
-  const resetUrl = `${process.env.NEXTAUTH_URL}/reset-password?token=${token}`;
+  const resetUrl = `${process.env.BETTER_AUTH_URL}/reset-password?token=${token}`;
 
   await resend.emails.send({
     from: process.env.RESEND_FROM_EMAIL || "noreply@yourdomain.com",
@@ -128,7 +128,7 @@ export async function sendInviteEmail({
   workspaceName: string;
   inviterName: string;
 }) {
-  const acceptUrl = `${process.env.NEXTAUTH_URL}/invite/accept?workspaceId=${workspaceId}&token=${inviteToken}`;
+  const acceptUrl = `${process.env.BETTER_AUTH_URL}/invite/accept?workspaceId=${workspaceId}&token=${inviteToken}`;
 
   await resend.emails.send({
     from: process.env.RESEND_FROM_EMAIL || "noreply@yourdomain.com",

@@ -12,15 +12,21 @@ export const createWorkspaceSchema = z.object({
     .string()
     .min(2, "Slug must be at least 2 characters")
     .max(48, "Slug must be under 48 characters")
-    .regex(slugRegex, "Slug can only contain lowercase letters, numbers, and hyphens"),
-  description: z.string().max(256, "Description must be under 256 characters").optional(),
+    .regex(
+      slugRegex,
+      "Slug can only contain lowercase letters, numbers, and hyphens"
+    ),
+  description: z
+    .string()
+    .max(256, "Description must be under 256 characters")
+    .optional(),
 });
 
 export const updateWorkspaceSchema = createWorkspaceSchema.partial();
 
 export const inviteMemberSchema = z.object({
-  email: z.string().email("Enter a valid email address"),
-  role: z.enum(["ADMIN", "MEMBER"]).default("MEMBER"),
+  email: z.string().email("Invalid email address"),
+  role: z.enum(["ADMIN", "MEMBER"]),
 });
 
 export const updateMemberRoleSchema = z.object({
