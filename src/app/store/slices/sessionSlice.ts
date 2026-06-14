@@ -7,10 +7,22 @@ export interface Session {
     id: string;
     name: string;
     email: string;
-    image?: string;
+    image?: string | null;
+    emailVerified?: boolean;
+    createdAt: string;
+    updatedAt: string;
   } | null;
+  session: {
+    id: string;
+    userId: string;
+    token: string;
+    expiresAt: string;
+    createdAt: string;
+    updatedAt: string;
+    ipAddress?: string | null;
+    userAgent?: string | null;
+  };
 }
-
 interface SessionState {
   data: Session | null;
   loading: boolean;
@@ -18,7 +30,22 @@ interface SessionState {
 
 export const fetchSession = createAsyncThunk("session/fetch", async () => {
   const { data } = await authClient.getSession();
-  return data as Session | null;
+
+  if (!data || !data.session || !data.user) return null;
+
+  return {
+    user: {
+      ...data.user,
+      createdAt: data.user.createdAt.toISOString(),
+      updatedAt: data.user.updatedAt.toISOString(),
+    },
+    session: {
+      ...data.session,
+      expiresAt: data.session.expiresAt.toISOString(),
+      createdAt: data.session.createdAt.toISOString(),
+      updatedAt: data.session.updatedAt.toISOString(),
+    },
+  } as Session;
 });
 
 export const logout = createAsyncThunk("session/logout", async () => {
