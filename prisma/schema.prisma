@@ -49,6 +49,9 @@ model User {
   sentInvites     WorkspaceInvite[] @relation("InvitedBy")
   receivedInvites WorkspaceInvite[] @relation("InvitedUser")
 
+  assignedTasks   Task[] @relation("AssignedTasks")
+  createdTasks    Task[] @relation("CreatedTasks")
+
   @@unique([email])
   @@map("user")
 }
@@ -113,6 +116,7 @@ model Workspace {
 
   members WorkspaceMember[]
   invites WorkspaceInvite[]
+    boards  Board[]
 
   @@map("workspaces")
 }
@@ -148,5 +152,57 @@ model WorkspaceInvite {
   invitedUser User?     @relation("InvitedUser", fields: [invitedUserId], references: [id])
 
   @@map("workspace_invites")
+}
+
+// ========== Kanban Models ==========
+model Board {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  workspaceId String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  columns     Column[]
+  tasks       Task[]
+
+  @@map("boards")
+}
+
+model Column {
+  id          String   @id @default(cuid())
+  title       String
+  order       Int      // for ordering columns left to right
+  boardId     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  board       Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  tasks       Task[]
+
+  @@map("columns")
+}
+
+model Task {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  status      String   // will store columnId (or a dedicated status enum)
+  order       Int      // for ordering tasks within a column
+  dueDate     DateTime?
+  assigneeId  String?
+  createdById String
+  boardId     String
+  columnId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  assignee    User?    @relation("AssignedTasks", fields: [assigneeId], references: [id])
+  createdBy   User     @relation("CreatedTasks", fields: [createdById], references: [id])
+  board       Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  column      Column   @relation(fields: [columnId], references: [id], onDelete: Cascade)
+
+  @@map("tasks")
 }
 

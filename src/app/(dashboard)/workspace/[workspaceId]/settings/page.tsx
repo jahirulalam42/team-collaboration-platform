@@ -1,5 +1,6 @@
 "use client";
 
+import { z } from "zod";
 import { useParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -31,13 +32,14 @@ export default function WorkspaceSettingsPage() {
   const deleteWorkspace = useDeleteWorkspace();
   const [isDeleting, setIsDeleting] = useState(false);
 
+  type UpdateWorkspaceForm = z.infer<typeof updateWorkspaceSchema>;
   const {
     register,
     handleSubmit,
     setValue,
     watch,
     formState: { errors },
-  } = useForm({
+  } = useForm<UpdateWorkspaceForm>({
     resolver: zodResolver(updateWorkspaceSchema),
     defaultValues: data?.workspace,
   });
