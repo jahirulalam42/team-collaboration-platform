@@ -1,99 +1,144 @@
-// components/kanban/Column.tsx
-import { Key, useState } from "react";
+"use client";
+
+import { useState } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import {
   SortableContext,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
+import { useQueryClient } from "@tanstack/react-query";
 import { SortableTask } from "./SortableTask";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Plus, X } from "lucide-react";
+import { toast } from "sonner";
 
 export function Column({ column, boardId }: any) {
-  const { setNodeRef } = useDroppable({
+  const { setNodeRef, isOver } = useDroppable({
     id: column.id,
-    data: { columnId: column.id },
+    data: { type: "Column", columnId: column.id },
   });
+
   const [isAdding, setIsAdding] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
+  const queryClient = useQueryClient();
 
   const handleCreateTask = async () => {
     if (!newTaskTitle.trim()) return;
-
-    const res = await fetch("/api/tasks", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: newTaskTitle,
-        columnId: column.id,
-        boardId: boardId,
-      }),
-    });
-
-    if (res.ok) {
+    try {
+      const res = await fetch("/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: newTaskTitle,
+          columnId: column.id,
+          boardId,
+        }),
+      });
+      if (!res.ok) throw new Error();
+      await queryClient.invalidateQueries({ queryKey: ["board", boardId] });
       setNewTaskTitle("");
       setIsAdding(false);
-      // Refetch board data (or update cache optimistically)
-      window.location.reload(); // quick refresh; later use React Query cache update
+      toast.success("Task created");
+    } catch {
+      toast.error("Failed to create task");
     }
   };
 
   const handleDeleteTask = async (taskId: string) => {
-    if (confirm("Delete this task?")) {
+    try {
       const res = await fetch(`/api/tasks/${taskId}`, { method: "DELETE" });
-      if (res.ok) {
-        // Refetch board data or update cache
-        window.location.reload(); // quick demo; later use React Query invalidate
-      }
+      if (!res.ok) throw new Error();
+      await queryClient.invalidateQueries({ queryKey: ["board", boardId] });
+      toast.success("Task deleted");
+    } catch {
+      toast.error("Failed to delete task");
     }
   };
 
   return (
-    <div ref={setNodeRef} className="w-80 bg-gray-100 rounded p-3">
-      <div className="flex justify-between items-center mb-3">
-        <h3 className="font-semibold">{column.title}</h3>
-        <Button size="sm" variant="ghost" onClick={() => setIsAdding(true)}>
-          <Plus className="h-4 w-4" />
-        </Button>
-      </div>
-
-      <SortableContext
-        items={column.tasks?.map((t: { id: any }) => t.id) || []}
-        strategy={verticalListSortingStrategy}
-      >
-        {column.tasks?.map((task: any) => (
-          <SortableTask key={task.id} task={task} onDelete={handleDeleteTask} />
-        ))}
-      </SortableContext>
-
-      {isAdding && (
-        <div className="mt-2">
-          <Input
-            autoFocus
-            placeholder="Task title..."
-            value={newTaskTitle}
-            onChange={(e) => setNewTaskTitle(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleCreateTask();
-              if (e.key === "Escape") setIsAdding(false);
-            }}
-            className="mb-2"
-          />
-          <div className="flex gap-2">
-            <Button size="sm" onClick={handleCreateTask}>
-              Add
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setIsAdding(false)}
-            >
-              Cancel
-            </Button>
-          </div>
+    <Card
+      ref={setNodeRef}
+      className={`w-72 shrink-0 flex flex-col max-h-[calc(100vh-160px)] bg-background border-muted transition-colors ${
+        isOver ? "border-primary/40 bg-primary/5" : ""
+      }`}
+    >
+      <CardHeader className="pb-2 pt-3 px-3 flex-row items-center justify-between space-y-0">
+        <div className="flex items-center gap-2">
+          <CardTitle className="text-sm font-semibold">
+            {column.title}
+          </CardTitle>
+          <Badge
+            variant="secondary"
+            className="h-5 text-[11px] font-medium rounded-md"
+          >
+            {column.tasks?.length || 0}
+          </Badge>
         </div>
-      )}
-    </div>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => setIsAdding(!isAdding)}
+          className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+        >
+          {isAdding ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+        </Button>
+      </CardHeader>
+      <CardContent className="flex-1 overflow-y-auto px-3 pb-3 pt-1 min-h-[100px]">
+        <SortableContext
+          items={column.tasks?.map((t: any) => t.id) || []}
+          strategy={verticalListSortingStrategy}
+        >
+          {column.tasks?.map((task: any) => (
+            <SortableTask
+              key={task.id}
+              task={task}
+              onDelete={handleDeleteTask}
+            />
+          ))}
+        </SortableContext>
+
+        {column.tasks?.length === 0 && !isAdding && (
+          <div className="flex items-center justify-center h-full text-xs text-muted-foreground/60 py-4">
+            Drop tasks here
+          </div>
+        )}
+
+        {isAdding && (
+          <div className="mt-2 space-y-2">
+            <Input
+              autoFocus
+              placeholder="Task title..."
+              value={newTaskTitle}
+              onChange={(e) => setNewTaskTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleCreateTask();
+                if (e.key === "Escape") setIsAdding(false);
+              }}
+              className="h-8 text-sm"
+            />
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                className="h-7 text-xs"
+                onClick={handleCreateTask}
+              >
+                Add
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs"
+                onClick={() => setIsAdding(false)}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

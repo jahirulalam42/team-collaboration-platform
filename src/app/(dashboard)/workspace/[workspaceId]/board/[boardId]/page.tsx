@@ -1,11 +1,12 @@
 "use client";
-import { Key, useState } from "react";
-import { use } from "react"; // 👈 Import React's `use` hook
+import { useState } from "react";
+import { use } from "react";
 import {
   DndContext,
   closestCorners,
   DragEndEvent,
   DragOverlay,
+  DragStartEvent,
   useSensor,
   useSensors,
   PointerSensor,
@@ -19,80 +20,111 @@ import { useBoardData } from "@/hooks/useBoardData";
 export default function BoardPage({
   params,
 }: {
-  params: Promise<{ workspaceId: string; boardId: string }>; // 👈 params is a Promise
+  params: Promise<{ workspaceId: string; boardId: string }>;
 }) {
-  // 👇 Unwrap the Promise to get the actual values
   const { workspaceId, boardId } = use(params);
-
   const queryClient = useQueryClient();
   const { data: board, refetch } = useBoardData(boardId);
-  const [activeTask, setActiveTask] = useState(null);
+  const [activeTask, setActiveTask] = useState<any>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
 
+  // Helper to find which column a task or column ID belongs to
+  const findColumn = (id: UniqueIdentifier) => {
+    if (!board) return null;
+    // Check if the ID is the column itself
+    if (board.columns.some((col: any) => col.id === id)) {
+      return board.columns.find((col: any) => col.id === id);
+    }
+    // Check if the ID is a task inside a column
+    return board.columns.find((col: any) =>
+      col.tasks.some((t: any) => t.id === id)
+    );
+  };
+
+  function handleDragStart(event: DragStartEvent) {
+    setActiveTask(event.active.data.current?.task);
+  }
+
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
-    if (!over || !board) return;
+    setActiveTask(null);
 
-    const activeTaskId = active.id;
-    const overColumnId = over.data.current?.columnId;
-    const newIndex = over.data.current?.sortable?.index;
+    if (!over || !board || active.id === over.id) return;
 
-    // Find old column & task from current board state
-    const oldColumn = board.columns.find((col: { tasks: any[] }) =>
-      col.tasks.some((t) => t.id === activeTaskId)
+    const activeColumn = findColumn(active.id);
+    const overColumn = findColumn(over.id);
+
+    if (!activeColumn || !overColumn) return;
+
+    const activeTaskIndex = activeColumn.tasks.findIndex(
+      (t: any) => t.id === active.id
     );
-    const oldTask = oldColumn?.tasks.find(
-      (t: { id: UniqueIdentifier }) => t.id === activeTaskId
+    if (activeTaskIndex === -1) return;
+    const activeTask = activeColumn.tasks[activeTaskIndex];
+
+    // Find where to insert. If dropping on a column, append to bottom. If on a task, insert above it.
+    const overTaskIndex = overColumn.tasks.findIndex(
+      (t: any) => t.id === over.id
     );
+    const insertIndex =
+      overTaskIndex === -1 ? overColumn.tasks.length : overTaskIndex;
 
-    if (!oldTask || oldTask.columnId === overColumnId) return;
+    // If dropping in the exact same position, do nothing
+    if (activeColumn.id === overColumn.id && activeTaskIndex === insertIndex) {
+      return;
+    }
 
-    // Create optimistic updated columns
-    const updatedColumns = board.columns.map(
-      (col: { id: any; tasks: any[] }) => {
-        if (col.id === oldTask.columnId) {
-          return {
-            ...col,
-            tasks: col.tasks.filter((t) => t.id !== activeTaskId),
-          };
-        }
-        if (col.id === overColumnId) {
-          const newTasks = [...col.tasks];
-          newTasks.splice(newIndex, 0, oldTask);
-          return { ...col, tasks: newTasks };
-        }
-        return col;
+    // Optimistic UI Update Logic
+    const updatedColumns = board.columns.map((col: any) => {
+      if (col.id === activeColumn.id && col.id === overColumn.id) {
+        // Reordering within the same column
+        const newTasks = [...col.tasks];
+        newTasks.splice(activeTaskIndex, 1);
+        newTasks.splice(
+          insertIndex > activeTaskIndex ? insertIndex - 1 : insertIndex,
+          0,
+          activeTask
+        );
+        return { ...col, tasks: newTasks };
+      } else if (col.id === activeColumn.id) {
+        // Remove from old column
+        return {
+          ...col,
+          tasks: col.tasks.filter((t: any) => t.id !== active.id),
+        };
+      } else if (col.id === overColumn.id) {
+        // Add to new column
+        const newTasks = [...col.tasks];
+        newTasks.splice(insertIndex, 0, activeTask);
+        return { ...col, tasks: newTasks };
       }
-    );
+      return col;
+    });
 
     const optimisticBoard = { ...board, columns: updatedColumns };
-
-    // Save original board for rollback
     const originalBoard = board;
 
-    // Optimistically update React Query cache
     queryClient.setQueryData(["board", boardId], optimisticBoard);
 
-    // Call API to persist move
     try {
       const res = await fetch("/api/tasks/move", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          taskId: activeTaskId,
-          newColumnId: overColumnId,
-          newOrder: newIndex,
-          oldColumnId: oldTask.columnId,
+          taskId: active.id,
+          newColumnId: overColumn.id,
+          newOrder:
+            insertIndex > activeTaskIndex && activeColumn.id === overColumn.id
+              ? insertIndex - 1
+              : insertIndex,
+          oldColumnId: activeColumn.id,
         }),
       });
       if (!res.ok) throw new Error("Failed to move task");
-      // Optionally refetch to ensure consistency
-      await refetch();
     } catch (error) {
-      // Rollback on error
       queryClient.setQueryData(["board", boardId], originalBoard);
       console.error("Drag drop error:", error);
     }
@@ -102,15 +134,15 @@ export default function BoardPage({
     <DndContext
       sensors={sensors}
       collisionDetection={closestCorners}
-      onDragStart={({ active }) => setActiveTask(active.data.current?.task)}
+      onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex gap-4 p-4 overflow-x-auto">
-        {board?.columns.map((column: { id: Key | null | undefined }) => (
+      <div className="flex gap-6 p-6 overflow-x-auto h-full items-start bg-muted/40 rounded-lg">
+        {board?.columns.map((column: any) => (
           <Column key={column.id} column={column} boardId={boardId} />
         ))}
       </div>
-      <DragOverlay>
+      <DragOverlay dropAnimation={null}>
         {activeTask ? <TaskCard task={activeTask} isOverlay /> : null}
       </DragOverlay>
     </DndContext>

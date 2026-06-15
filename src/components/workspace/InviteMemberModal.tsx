@@ -1,15 +1,32 @@
-// components/workspace/InviteMemberModal.tsx
+// components/workspace/InviteMemberModal.tsx (shadcn Dialog + raw react-hook-form)
 "use client";
 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { X, Loader2, Mail } from "lucide-react";
+import { Mail, Loader2 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   inviteMemberSchema,
   type InviteMemberInput,
 } from "@/lib/validations/workspace";
 import { useInviteMember } from "@/hooks/useWorkspace";
-import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface Props {
   open: boolean;
@@ -30,111 +47,104 @@ export function InviteMemberModal({
     register,
     handleSubmit,
     reset,
+    setValue,
+    watch,
     formState: { errors },
   } = useForm<InviteMemberInput>({
     resolver: zodResolver(inviteMemberSchema),
-    defaultValues: {
-      email: "",
-      role: "MEMBER", // ✅ provide default value to avoid undefined
-    },
+    defaultValues: { email: "", role: "MEMBER" },
   });
 
+  const selectedRole = watch("role");
+
   const onSubmit = async (data: InviteMemberInput) => {
-    await mutateAsync(data);
-    reset();
-    onClose();
+    try {
+      await mutateAsync(data);
+      toast.success(`Invitation sent to ${data.email}`);
+      reset();
+      onClose();
+    } catch {
+      toast.error("Failed to send invitation");
+    }
   };
 
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-        onClick={onClose}
-      />
-
-      <div className="relative z-10 w-full max-w-md rounded-xl border border-border bg-background p-6 shadow-xl">
-        <div className="flex items-center justify-between mb-5">
-          <div>
-            <h2 className="text-lg font-semibold">Invite member</h2>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Invite someone to{" "}
-              <span className="font-medium text-foreground">
-                {workspaceName}
-              </span>
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted transition-colors"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Invite member</DialogTitle>
+          <DialogDescription>
+            Invite someone to{" "}
+            <span className="font-medium">{workspaceName}</span>
+          </DialogDescription>
+        </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Email address</label>
+          <div className="space-y-2">
+            <Label htmlFor="email">Email address</Label>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <input
+              <Input
+                id="email"
                 type="email"
                 placeholder="colleague@company.com"
-                autoFocus
-                className={cn(
-                  "flex h-10 w-full rounded-lg border bg-background pl-9 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:ring-2 focus:ring-ring",
-                  errors.email ? "border-destructive" : "border-border"
-                )}
+                className="pl-9"
                 {...register("email")}
               />
             </div>
             {errors.email && (
-              <p className="text-xs text-destructive">{errors.email.message}</p>
+              <p className="text-sm text-destructive">{errors.email.message}</p>
             )}
           </div>
 
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Role</label>
-            <select
-              className="flex h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none transition-colors focus:ring-2 focus:ring-ring"
-              {...register("role")}
+          <div className="space-y-2">
+            <Label htmlFor="role">Role</Label>
+            <Select
+              value={selectedRole}
+              onValueChange={(value) =>
+                setValue("role", value as "ADMIN" | "MEMBER")
+              }
             >
-              <option value="MEMBER">Member — can view and edit boards</option>
-              <option value="ADMIN">
-                Admin — can manage members and settings
-              </option>
-            </select>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a role" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="MEMBER">
+                  Member – can view and edit boards
+                </SelectItem>
+                <SelectItem value="ADMIN">
+                  Admin – can manage members and settings
+                </SelectItem>
+              </SelectContent>
+            </Select>
             {errors.role && (
-              <p className="text-xs text-destructive">{errors.role.message}</p>
+              <p className="text-sm text-destructive">{errors.role.message}</p>
             )}
           </div>
 
-          <div className="rounded-lg bg-muted/50 px-4 py-3 text-xs text-muted-foreground">
+          <div className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
             The invite link expires in{" "}
-            <span className="font-medium text-foreground">7 days</span>. The
-            recipient must have or create a SyncSpace account.
+            <span className="font-medium">7 days</span>. The recipient must have
+            or create a SyncSpace account.
           </div>
 
-          <div className="flex gap-3 pt-1">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex h-10 flex-1 items-center justify-center rounded-lg border border-border text-sm font-medium hover:bg-muted transition-colors"
-            >
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={onClose}>
               Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isPending}
-              className="flex h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-primary text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60 transition-colors"
-            >
-              {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-              {isPending ? "Sending…" : "Send invite"}
-            </button>
+            </Button>
+            <Button type="submit" disabled={isPending}>
+              {isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                "Send invite"
+              )}
+            </Button>
           </div>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

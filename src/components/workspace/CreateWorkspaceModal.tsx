@@ -1,13 +1,28 @@
-// components/workspace/CreateWorkspaceModal.tsx
 "use client";
 
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { X, Loader2 } from "lucide-react";
-import { createWorkspaceSchema, type CreateWorkspaceInput } from "@/lib/validations/workspace";
+import { Loader2, Users, Globe, Info } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import {
+  createWorkspaceSchema,
+  type CreateWorkspaceInput,
+} from "@/lib/validations/workspace";
 import { useCreateWorkspace } from "@/hooks/useWorkspace";
-import { generateSlug, cn } from "@/lib/utils";
+import { generateSlug } from "@/lib/utils";
 
 interface Props {
   open: boolean;
@@ -24,15 +39,19 @@ export function CreateWorkspaceModal({ open, onClose, onSuccess }: Props) {
     watch,
     setValue,
     reset,
-    formState: { errors },
-  } = useForm<CreateWorkspaceInput>({ resolver: zodResolver(createWorkspaceSchema) });
+    formState: { errors, isDirty },
+  } = useForm<CreateWorkspaceInput>({
+    resolver: zodResolver(createWorkspaceSchema),
+    defaultValues: { name: "", slug: "", description: "" },
+  });
 
-  const name = watch("name", "");
+  const name = watch("name");
 
-  // Auto-populate slug from name
   useEffect(() => {
-    if (name) setValue("slug", generateSlug(name));
-  }, [name, setValue]);
+    if (name && !isDirty) {
+      setValue("slug", generateSlug(name), { shouldValidate: true });
+    }
+  }, [name, setValue, isDirty]);
 
   const onSubmit = async (data: CreateWorkspaceInput) => {
     const workspace = await mutateAsync(data);
@@ -41,100 +60,121 @@ export function CreateWorkspaceModal({ open, onClose, onSuccess }: Props) {
     onClose();
   };
 
-  if (!open) return null;
+  // Reset on close
+  const handleOpenChange = (isOpen: boolean) => {
+    if (!isOpen) {
+      reset();
+      onClose();
+    }
+  };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-        onClick={onClose}
-      />
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-xl">
+            <Users className="h-5 w-5 text-primary" />
+            Create a new workspace
+          </DialogTitle>
+          <DialogDescription>
+            A workspace is where your team collaborates on projects, tasks, and
+            documents.
+          </DialogDescription>
+        </DialogHeader>
 
-      {/* Modal */}
-      <div className="relative z-10 w-full max-w-md rounded-xl border border-border bg-background p-6 shadow-xl">
-        <div className="flex items-center justify-between mb-5">
-          <div>
-            <h2 className="text-lg font-semibold">Create workspace</h2>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              A workspace is a shared space for your team
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Workspace name</label>
-            <input
-              type="text"
-              placeholder="Acme Engineering"
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+          {/* Name field */}
+          <div className="space-y-2">
+            <Label htmlFor="name">Workspace name</Label>
+            <Input
+              id="name"
+              placeholder="e.g., Acme Engineering"
               autoFocus
-              className={cn(
-                "flex h-10 w-full rounded-lg border bg-background px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:ring-2 focus:ring-ring",
-                errors.name ? "border-destructive" : "border-border"
-              )}
               {...register("name")}
             />
-            {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
+            {errors.name && (
+              <p className="text-sm text-destructive">{errors.name.message}</p>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Choose a name that represents your team or project.
+            </p>
           </div>
 
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">URL slug</label>
-            <div className="flex items-center gap-0">
-              <span className="flex h-10 items-center rounded-l-lg border border-r-0 border-border bg-muted px-3 text-sm text-muted-foreground">
+          {/* Slug field */}
+          <div className="space-y-2">
+            <Label htmlFor="slug">URL slug</Label>
+            <div className="flex">
+              <span className="inline-flex items-center rounded-l-md border border-r-0 border-input bg-muted px-3 text-sm text-muted-foreground">
                 syncspace.app/
               </span>
-              <input
-                type="text"
+              <Input
+                id="slug"
+                className="rounded-l-none"
                 placeholder="acme-engineering"
-                className={cn(
-                  "flex h-10 flex-1 rounded-r-lg border bg-background px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:ring-2 focus:ring-ring",
-                  errors.slug ? "border-destructive" : "border-border"
-                )}
                 {...register("slug")}
               />
             </div>
-            {errors.slug && <p className="text-xs text-destructive">{errors.slug.message}</p>}
+            {errors.slug && (
+              <p className="text-sm text-destructive">{errors.slug.message}</p>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Used in your workspace URL. Only lowercase letters, numbers, and
+              hyphens.
+            </p>
           </div>
 
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">
-              Description{" "}
-              <span className="font-normal text-muted-foreground">(optional)</span>
-            </label>
-            <textarea
-              rows={2}
-              placeholder="What does this workspace do?"
-              className="flex w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:ring-2 focus:ring-ring resize-none"
+          {/* Description field */}
+          <div className="space-y-2">
+            <Label htmlFor="description">Description (optional)</Label>
+            <Textarea
+              id="description"
+              rows={3}
+              placeholder="What is this workspace for?"
               {...register("description")}
             />
           </div>
 
-          <div className="flex gap-3 pt-1">
-            <button
+          {/* Info box */}
+          <div className="rounded-lg bg-muted/50 p-3 flex items-start gap-2 text-xs text-muted-foreground">
+            <Info className="h-4 w-4 shrink-0 mt-0.5" />
+            <span>
+              You'll be the{" "}
+              <Badge variant="secondary" className="mx-1 text-[10px]">
+                Owner
+              </Badge>{" "}
+              of this workspace.
+            </span>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
               type="button"
-              onClick={onClose}
-              className="flex h-10 flex-1 items-center justify-center rounded-lg border border-border text-sm font-medium transition-colors hover:bg-muted"
+              variant="outline"
+              onClick={() => handleOpenChange(false)}
+              disabled={isPending}
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
               disabled={isPending}
-              className="flex h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-primary text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
+              className="min-w-[100px]"
             >
-              {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-              {isPending ? "Creating…" : "Create workspace"}
-            </button>
-          </div>
+              {isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <Globe className="mr-2 h-4 w-4" />
+                  Create workspace
+                </>
+              )}
+            </Button>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -1,5 +1,8 @@
 "use client";
-import { useState } from "react";
+
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import {
   Dialog,
   DialogContent,
@@ -9,19 +12,39 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 
-export function CreateBoardModal({ open, onClose, onCreate }: any) {
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [loading, setLoading] = useState(false);
+const boardSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  description: z.string().optional(),
+});
 
-  const handleSubmit = async () => {
-    if (!name.trim()) return;
-    setLoading(true);
-    await onCreate(name, description);
-    setLoading(false);
-    setName("");
-    setDescription("");
+type BoardForm = z.infer<typeof boardSchema>;
+
+interface CreateBoardModalProps {
+  open: boolean;
+  onClose: () => void;
+  onCreate: (name: string, description?: string) => Promise<void>;
+}
+
+export function CreateBoardModal({
+  open,
+  onClose,
+  onCreate,
+}: CreateBoardModalProps) {
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<BoardForm>({
+    resolver: zodResolver(boardSchema),
+    defaultValues: { name: "", description: "" },
+  });
+
+  const onSubmit = async (data: BoardForm) => {
+    await onCreate(data.name, data.description);
+    reset();
     onClose();
   };
 
@@ -31,26 +54,37 @@ export function CreateBoardModal({ open, onClose, onCreate }: any) {
         <DialogHeader>
           <DialogTitle>Create new board</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4">
-          <Input
-            placeholder="Board name (e.g., Sprint 24)"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-          <Textarea
-            placeholder="Description (optional)"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-          />
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="name">Board name</Label>
+            <Input
+              id="name"
+              placeholder="e.g., Sprint 24"
+              {...register("name")}
+            />
+            {errors.name && (
+              <p className="text-sm text-destructive">{errors.name.message}</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="description">Description (optional)</Label>
+            <Textarea
+              id="description"
+              placeholder="What is this board for?"
+              {...register("description")}
+            />
+          </div>
+
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button onClick={handleSubmit} disabled={loading}>
-              {loading ? "Creating..." : "Create"}
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Creating..." : "Create"}
             </Button>
           </div>
-        </div>
+        </form>
       </DialogContent>
     </Dialog>
   );

@@ -1,8 +1,15 @@
+"use client";
+
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { TaskCard } from "./TaskCard";
 
-export function SortableTask({ task, onDelete }: any) {
+interface SortableTaskProps {
+  task: any;
+  onDelete: (taskId: string) => void;
+}
+
+export function SortableTask({ task, onDelete }: SortableTaskProps) {
   const {
     attributes,
     listeners,
@@ -12,7 +19,10 @@ export function SortableTask({ task, onDelete }: any) {
     isDragging,
   } = useSortable({
     id: task.id,
-    data: { task },
+    data: {
+      type: "Task",
+      task,
+    },
   });
 
   const style = {
@@ -22,7 +32,13 @@ export function SortableTask({ task, onDelete }: any) {
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className="mb-2"
+    >
       <TaskCard task={task} onDelete={onDelete} />
     </div>
   );

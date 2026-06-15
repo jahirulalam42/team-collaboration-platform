@@ -3,30 +3,47 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Menu, X, LayoutDashboard, User, LogOut } from "lucide-react";
+import {
+  Menu,
+  X,
+  LayoutDashboard,
+  User,
+  LogOut,
+  ChevronLeft,
+  ChevronRight,
+  Home,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Separator } from "@/components/ui/separator";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useAppDispatch, useAppSelector } from "@/app/store/hooks";
 import { fetchSession, logout } from "@/app/store/slices/sessionSlice";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const dispatch = useAppDispatch();
   const { data: session, loading } = useAppSelector((state) => state.session);
 
-  // Fetch session on mount
   useEffect(() => {
     dispatch(fetchSession());
   }, [dispatch]);
 
-  // Redirect if not authenticated
   useEffect(() => {
     if (!loading && !session) {
       router.push("/login");
@@ -40,8 +57,11 @@ export default function DashboardLayout({
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        Loading...
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          <p className="text-sm text-muted-foreground">Loading workspace...</p>
+        </div>
       </div>
     );
   }
@@ -53,92 +73,168 @@ export default function DashboardLayout({
     { name: "Profile", href: "/profile", icon: User },
   ];
 
+  const NavLinks = ({ collapsed = false, onItemClick = () => {} }) => (
+    <nav className="flex-1 space-y-1 p-3">
+      {navItems.map((item) => {
+        const isActive = pathname === item.href;
+        return (
+          <TooltipProvider key={item.href} delayDuration={0}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link
+                  href={item.href}
+                  onClick={onItemClick}
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
+                    isActive
+                      ? "bg-primary/10 text-primary shadow-sm"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                    collapsed && "justify-center px-2"
+                  )}
+                >
+                  <item.icon
+                    className={cn("h-5 w-5", isActive && "text-primary")}
+                  />
+                  {!collapsed && <span>{item.name}</span>}
+                </Link>
+              </TooltipTrigger>
+              {collapsed && (
+                <TooltipContent side="right" className="text-xs">
+                  {item.name}
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
+        );
+      })}
+    </nav>
+  );
+
+  const UserSection = ({ collapsed = false }) => (
+    <div className={cn("border-t p-3", collapsed && "p-2")}>
+      <div
+        className={cn("flex items-center gap-3", collapsed && "justify-center")}
+      >
+        <Avatar className="h-8 w-8 ring-2 ring-primary/10">
+          <AvatarImage src={session.user?.image ?? undefined} />
+          <AvatarFallback className="bg-primary/10 text-primary text-xs">
+            {session.user?.name?.[0]?.toUpperCase() || "U"}
+          </AvatarFallback>
+        </Avatar>
+        {!collapsed && (
+          <div className="flex-1 truncate">
+            <p className="text-sm font-medium leading-none">
+              {session.user?.name}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground truncate">
+              {session.user?.email}
+            </p>
+          </div>
+        )}
+        {!collapsed && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleLogout}
+                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                >
+                  <LogOut className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Sign out</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <div className="flex h-screen bg-background">
-      {/* Mobile sidebar backdrop */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* Sidebar */}
+      {/* Desktop Sidebar */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 w-64 transform bg-card border-r transition-transform duration-200 ease-in-out lg:relative lg:translate-x-0",
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+          "hidden lg:flex lg:flex-col border-r bg-card/50 backdrop-blur-sm transition-all duration-300",
+          sidebarCollapsed ? "w-16" : "w-64"
         )}
       >
-        <div className="flex h-full flex-col">
-          <div className="flex h-14 items-center justify-between px-4 border-b">
-            <Link href="/dashboard" className="font-bold text-xl">
+        <div className="flex h-14 items-center justify-between px-3 border-b">
+          {!sidebarCollapsed && (
+            <Link
+              href="/dashboard"
+              className="font-bold text-xl bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent"
+            >
               SyncSpace
             </Link>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="lg:hidden"
-              onClick={() => setSidebarOpen(false)}
-            >
-              <X className="h-5 w-5" />
-            </Button>
-          </div>
-          <nav className="flex-1 space-y-1 p-3">
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                  pathname === item.href
-                    ? "bg-primary text-primary-foreground"
-                    : "hover:bg-muted"
-                )}
-              >
-                <item.icon className="h-4 w-4" />
-                {item.name}
-              </Link>
-            ))}
-          </nav>
-          <div className="border-t p-3">
-            <div className="flex items-center gap-3">
-              <Avatar className="h-8 w-8">
-                <AvatarImage src={session.user?.image ?? undefined} />
-                <AvatarFallback>
-                  {session.user?.name?.[0] || "U"}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 truncate">
-                <p className="text-sm font-medium">{session.user?.name}</p>
-                <p className="text-xs text-muted-foreground truncate">
-                  {session.user?.email}
-                </p>
-              </div>
-              <Button variant="ghost" size="icon" onClick={handleLogout}>
-                <LogOut className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </div>
-      </aside>
-
-      {/* Main content */}
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <header className="flex h-14 items-center justify-between border-b px-4 lg:hidden">
+          )}
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setSidebarOpen(true)}
+            className={cn("ml-auto h-8 w-8", sidebarCollapsed && "mx-auto")}
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+          >
+            {sidebarCollapsed ? (
+              <ChevronRight className="h-4 w-4" />
+            ) : (
+              <ChevronLeft className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
+        <NavLinks collapsed={sidebarCollapsed} />
+        <UserSection collapsed={sidebarCollapsed} />
+      </aside>
+
+      {/* Mobile Sheet */}
+      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+        <SheetTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="lg:hidden fixed left-4 top-3 z-50 h-9 w-9"
           >
             <Menu className="h-5 w-5" />
           </Button>
-          <Link href="/dashboard" className="font-bold text-lg">
-            SyncSpace
-          </Link>
-          <div className="w-8" />
+        </SheetTrigger>
+        <SheetContent side="left" className="w-72 p-0">
+          <div className="flex h-full flex-col">
+            <div className="flex h-14 items-center border-b px-4">
+              <Link href="/dashboard" className="font-bold text-xl">
+                SyncSpace
+              </Link>
+            </div>
+            <NavLinks onItemClick={() => setMobileOpen(false)} />
+            <UserSection />
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Main Content */}
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <header className="flex h-14 items-center justify-between border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 lg:px-6">
+          <div className="flex items-center gap-2">
+            <div className="lg:hidden w-9" />{" "}
+            {/* spacer for mobile menu button */}
+            <h1 className="text-lg font-semibold text-muted-foreground">
+              {navItems.find((item) => item.href === pathname)?.name ||
+                "Dashboard"}
+            </h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground"
+            >
+              <Home className="h-4 w-4" />
+            </Button>
+          </div>
         </header>
-        <main className="flex-1 overflow-auto p-4 md:p-6">{children}</main>
+        <main className="flex-1 overflow-auto p-4 md:p-6 lg:p-8">
+          {children}
+        </main>
       </div>
     </div>
   );
