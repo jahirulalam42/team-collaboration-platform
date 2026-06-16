@@ -37,7 +37,7 @@ export function SortableTask({ task, onDelete }: SortableTaskProps) {
       style={style}
       {...attributes}
       {...listeners}
-      className="mb-2"
+      className="mt-2 w-full" // Ensures full width and consistent spacing
     >
       <TaskCard task={task} onDelete={onDelete} />
     </div>

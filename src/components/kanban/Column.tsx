@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, X } from "lucide-react";
+import { Plus, X, LayoutList } from "lucide-react";
 import { toast } from "sonner";
 
 export function Column({ column, boardId }: any) {
@@ -61,13 +61,13 @@ export function Column({ column, boardId }: any) {
   return (
     <Card
       ref={setNodeRef}
-      className={`w-72 shrink-0 flex flex-col max-h-[calc(100vh-160px)] bg-background border-muted transition-colors ${
+      className={`w-72 shrink-0 flex flex-col max-h-[calc(100vh-160px)] min-h-[280px] bg-muted/30 border-muted transition-colors overflow-hidden ${
         isOver ? "border-primary/40 bg-primary/5" : ""
       }`}
     >
-      <CardHeader className="pb-2 pt-3 px-3 flex-row items-center justify-between space-y-0">
+      <CardHeader className="pb-2 pt-3 px-3 flex-row items-center justify-between space-y-0 bg-muted/50 border-b border-muted">
         <div className="flex items-center gap-2">
-          <CardTitle className="text-sm font-semibold">
+          <CardTitle className="text-sm font-semibold tracking-tight">
             {column.title}
           </CardTitle>
           <Badge
@@ -86,7 +86,7 @@ export function Column({ column, boardId }: any) {
           {isAdding ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
         </Button>
       </CardHeader>
-      <CardContent className="flex-1 overflow-y-auto px-3 pb-3 pt-1 min-h-[100px]">
+      <CardContent className="flex-1 overflow-y-auto px-3 pb-3 pt-2">
         <SortableContext
           items={column.tasks?.map((t: any) => t.id) || []}
           strategy={verticalListSortingStrategy}
@@ -101,13 +101,14 @@ export function Column({ column, boardId }: any) {
         </SortableContext>
 
         {column.tasks?.length === 0 && !isAdding && (
-          <div className="flex items-center justify-center h-full text-xs text-muted-foreground/60 py-4">
+          <div className="flex flex-col items-center justify-center h-full text-xs text-muted-foreground/60 py-8 border border-dashed border-muted-foreground/20 rounded-md mt-2">
+            <LayoutList className="h-6 w-6 mb-2 text-muted-foreground/40" />
             Drop tasks here
           </div>
         )}
 
         {isAdding && (
-          <div className="mt-2 space-y-2">
+          <div className="mt-2 space-y-2 bg-background p-2 rounded-md border border-primary/20 shadow-sm">
             <Input
               autoFocus
               placeholder="Task title..."
@@ -122,14 +123,14 @@ export function Column({ column, boardId }: any) {
             <div className="flex gap-2">
               <Button
                 size="sm"
-                className="h-7 text-xs"
+                className="h-7 text-xs shadow-sm gap-1"
                 onClick={handleCreateTask}
               >
-                Add
+                <Plus className="h-3 w-3" /> Add
               </Button>
               <Button
                 size="sm"
-                variant="outline"
+                variant="ghost"
                 className="h-7 text-xs"
                 onClick={() => setIsAdding(false)}
               >
