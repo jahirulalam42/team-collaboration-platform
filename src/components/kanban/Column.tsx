@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, X, LayoutList } from "lucide-react";
 import { toast } from "sonner";
 
-export function Column({ column, boardId }: any) {
+export function Column({ column, boardId, members, onAssign }: any) {
   const { setNodeRef, isOver } = useDroppable({
     id: column.id,
     data: { type: "Column", columnId: column.id },
@@ -96,6 +96,8 @@ export function Column({ column, boardId }: any) {
               key={task.id}
               task={task}
               onDelete={handleDeleteTask}
+              members={members}
+              onAssign={onAssign}
             />
           ))}
         </SortableContext>

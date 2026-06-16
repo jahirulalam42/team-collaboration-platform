@@ -1,25 +1,21 @@
+// app/(dashboard)/dashboard/page.tsx
 "use client";
 
-import {
-  JSXElementConstructor,
-  Key,
-  ReactElement,
-  ReactNode,
-  ReactPortal,
-  useState,
-} from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Plus,
   Users,
-  Calendar,
   Activity,
   Sparkles,
   FolderOpen,
   ArrowRight,
+  Zap,
+  Circle,
 } from "lucide-react";
 import { useWorkspaces } from "@/hooks/useWorkspace";
+import { useAppSelector } from "@/app/store/hooks";
 import { CreateWorkspaceModal } from "@/components/workspace/CreateWorkspaceModal";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,24 +28,108 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
+
+interface Workspace {
+  id: string;
+  name: string;
+  role: string;
+  description?: string | null;
+  _count: { members: number };
+}
+
+// Generates a stable hue from a string so each user gets a consistent color
+function colorFromName(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const h = Math.abs(hash) % 360;
+  return `hsl(${h}, 60%, 45%)`;
+}
+
+// Stacked presence avatars with overflow count
+function PresenceStack({
+  onlineCount,
+  totalMembers,
+  workspaceId,
+}: {
+  onlineCount: number;
+  totalMembers: number;
+  workspaceId: string;
+}) {
+  const MAX_SHOWN = 4;
+  const overflow = Math.max(0, onlineCount - MAX_SHOWN);
+  const shown = Math.min(onlineCount, MAX_SHOWN);
+
+  if (onlineCount === 0) {
+    return (
+      <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+        <Users className="h-3.5 w-3.5" />
+        {totalMembers} member{totalMembers !== 1 ? "s" : ""}
+      </span>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      {/* Avatar stack */}
+      <div className="flex -space-x-2">
+        {[...Array(shown)].map((_, i) => {
+          const letter = String.fromCharCode(
+            65 + ((i * 7 + workspaceId.charCodeAt(0)) % 26)
+          );
+          const bg = colorFromName(workspaceId + i);
+          return (
+            <div
+              key={i}
+              className="h-6 w-6 rounded-full ring-2 ring-background flex items-center justify-center text-[10px] font-semibold text-white"
+              style={{ backgroundColor: bg }}
+            >
+              {letter}
+            </div>
+          );
+        })}
+        {overflow > 0 && (
+          <div className="h-6 w-6 rounded-full ring-2 ring-background bg-muted flex items-center justify-center text-[9px] font-semibold text-muted-foreground">
+            +{overflow}
+          </div>
+        )}
+      </div>
+      <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
+        {onlineCount} online
+      </span>
+    </div>
+  );
+}
 
 export default function DashboardPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const { data: workspaces, isLoading, error } = useWorkspaces();
+  // onlineUsersSlice shape: Record<workspaceId, string[]>
+  const onlineUsersMap = useAppSelector((state) => state.onlineUsers);
 
-  // Calculate total members across all workspaces
   const totalMembers =
     workspaces?.reduce(
-      (sum: any, ws: { _count: { members: any } }) =>
-        sum + (ws._count?.members || 0),
+      (sum: number, ws: Workspace) => sum + (ws._count?.members || 0),
       0
     ) || 0;
+
+  // Count online users per workspace from Redux store
+  const onlineByWorkspace: Record<string, number> = {};
+  if (onlineUsersMap) {
+    for (const [wsId, userIds] of Object.entries(onlineUsersMap)) {
+      onlineByWorkspace[wsId] = (userIds as string[]).length;
+    }
+  }
+
+  const totalOnline = Object.values(onlineByWorkspace).reduce(
+    (a, b) => a + b,
+    0
+  );
 
   if (isLoading) {
     return (
       <div className="space-y-8">
-        {/* Welcome skeleton */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-2">
             <Skeleton className="h-9 w-48" />
@@ -57,16 +137,14 @@ export default function DashboardPage() {
           </div>
           <Skeleton className="h-10 w-36" />
         </div>
-        {/* Stats skeleton */}
         <div className="grid gap-4 md:grid-cols-3">
           {[...Array(3)].map((_, i) => (
             <Skeleton key={i} className="h-32 w-full rounded-xl" />
           ))}
         </div>
-        {/* Workspaces skeleton */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[...Array(3)].map((_, i) => (
-            <Skeleton key={i} className="h-36 w-full rounded-xl" />
+            <Skeleton key={i} className="h-52 w-full rounded-xl" />
           ))}
         </div>
       </div>
@@ -90,12 +168,10 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      {/* Welcome header with gradient */}
+      {/* Welcome header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-            Dashboard
-          </h1>
+          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground mt-1">
             Welcome back! You are a member of{" "}
             <span className="font-semibold text-foreground">
@@ -113,7 +189,7 @@ export default function DashboardPage() {
         </Button>
       </div>
 
-      {/* Stats cards with icons and animations */}
+      {/* Stats cards */}
       <div className="grid gap-4 md:grid-cols-3">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -125,7 +201,9 @@ export default function DashboardPage() {
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 Total Members
               </CardTitle>
-              <Users className="h-4 w-4 text-primary" />
+              <div className="rounded-md bg-primary/10 p-2">
+                <Users className="h-4 w-4 text-primary" />
+              </div>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold">{totalMembers}</div>
@@ -146,7 +224,9 @@ export default function DashboardPage() {
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 Active Workspaces
               </CardTitle>
-              <Activity className="h-4 w-4 text-primary" />
+              <div className="rounded-md bg-primary/10 p-2">
+                <Activity className="h-4 w-4 text-primary" />
+              </div>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold">
@@ -159,30 +239,39 @@ export default function DashboardPage() {
           </Card>
         </motion.div>
 
+        {/* Live presence stat — the hero card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
         >
-          <Card className="border-0 bg-gradient-to-br from-primary/5 via-background to-background shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <Card className="border-0 shadow-sm overflow-hidden relative bg-gradient-to-br from-emerald-500/10 via-background to-background">
+            {/* Subtle animated ring to signal "live" */}
+            <span className="absolute top-3 right-3 flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500" />
+            </span>
+            <CardHeader className="flex flex-row items-center justify-between pb-2 pr-8">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                Completion Rate
+                Online Now
               </CardTitle>
-              <Calendar className="h-4 w-4 text-primary" />
+              <div className="rounded-md bg-emerald-500/10 p-2">
+                <Zap className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">—</div>
-              <Progress value={0} className="mt-2 h-1" />
-              <p className="text-xs text-muted-foreground mt-2">
-                Track tasks to see stats
+              <div className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">
+                {totalOnline}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                member{totalOnline !== 1 ? "s" : ""} active right now
               </p>
             </CardContent>
           </Card>
         </motion.div>
       </div>
 
-      {/* Workspace grid with empty state */}
+      {/* Workspace grid */}
       {!hasWorkspaces ? (
         <motion.div
           initial={{ opacity: 0, scale: 0.98 }}
@@ -197,7 +286,7 @@ export default function DashboardPage() {
               <h3 className="text-lg font-semibold mb-1">No workspaces yet</h3>
               <p className="text-muted-foreground text-sm mb-6 max-w-sm">
                 Create your first workspace to start collaborating with your
-                team
+                team in real-time
               </p>
               <Button onClick={() => setModalOpen(true)} className="gap-2">
                 <Sparkles className="h-4 w-4" />
@@ -212,128 +301,89 @@ export default function DashboardPage() {
             <h2 className="text-lg font-semibold tracking-tight">
               Your workspaces
             </h2>
-            <Badge variant="secondary" className="gap-1">
-              <Users className="h-3 w-3" />
-              {totalMembers} total members
+            <Badge variant="secondary" className="gap-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              {totalOnline} online
             </Badge>
           </div>
+
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <AnimatePresence>
-              {workspaces?.map(
-                (
-                  ws: {
-                    id: Key | null | undefined;
-                    name: string;
-                    role: string;
-                    _count: {
-                      members:
-                        | string
-                        | number
-                        | bigint
-                        | boolean
-                        | ReactElement<
-                            unknown,
-                            string | JSXElementConstructor<any>
-                          >
-                        | Iterable<ReactNode>
-                        | Promise<
-                            | string
-                            | number
-                            | bigint
-                            | boolean
-                            | ReactPortal
-                            | ReactElement<
-                                unknown,
-                                string | JSXElementConstructor<any>
-                              >
-                            | Iterable<ReactNode>
-                            | null
-                            | undefined
-                          >
-                        | null
-                        | undefined;
-                    };
-                    description:
-                      | string
-                      | number
-                      | bigint
-                      | boolean
-                      | ReactElement<
-                          unknown,
-                          string | JSXElementConstructor<any>
-                        >
-                      | Iterable<ReactNode>
-                      | ReactPortal
-                      | Promise<
-                          | string
-                          | number
-                          | bigint
-                          | boolean
-                          | ReactPortal
-                          | ReactElement<
-                              unknown,
-                              string | JSXElementConstructor<any>
-                            >
-                          | Iterable<ReactNode>
-                          | null
-                          | undefined
-                        >
-                      | null
-                      | undefined;
-                  },
-                  index: number
-                ) => (
+              {workspaces?.map((ws: Workspace, index: number) => {
+                const onlineCount = onlineByWorkspace[ws.id] || 0;
+                const hasActivity = onlineCount > 0;
+
+                return (
                   <motion.div
                     key={ws.id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.05 }}
-                    whileHover={{ y: -4 }}
+                    whileHover={{ y: -3 }}
                   >
-                    <Link href={`/workspace/${String(ws.id)}`}>
-                      <Card className="h-full transition-all duration-200 hover:shadow-lg hover:border-primary/30 group cursor-pointer">
-                        <CardHeader className="flex flex-row items-center gap-3 pb-3">
-                          <Avatar className="h-12 w-12 bg-gradient-to-br from-primary/20 to-primary/5 shadow-sm">
-                            <AvatarFallback className="text-primary font-semibold text-lg">
+                    <Link href={`/workspace/${ws.id}`}>
+                      <Card className="h-full transition-all duration-200 hover:shadow-lg hover:border-primary/30 group cursor-pointer overflow-hidden relative">
+                        {/* Top accent bar — green if people are online */}
+                        <div
+                          className={`absolute top-0 left-0 right-0 h-[3px] transition-all duration-300 ${
+                            hasActivity
+                              ? "bg-gradient-to-r from-emerald-400 to-emerald-300/50"
+                              : "bg-gradient-to-r from-primary/70 to-primary/20"
+                          }`}
+                        />
+
+                        <CardHeader className="flex flex-row items-start gap-3 pb-3 pt-5">
+                          <Avatar className="h-11 w-11 bg-gradient-to-br from-primary/20 to-primary/5 shadow-sm shrink-0">
+                            <AvatarFallback className="text-primary font-semibold text-base">
                               {ws?.name[0]?.toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
-                          <div className="flex-1">
-                            <CardTitle className="text-base group-hover:text-primary transition-colors">
-                              {ws.name}
-                            </CardTitle>
-                            <CardDescription className="capitalize text-xs flex items-center gap-1 mt-0.5">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <CardTitle className="text-base group-hover:text-primary transition-colors truncate">
+                                {ws.name}
+                              </CardTitle>
+                              {hasActivity && (
+                                <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0 animate-pulse" />
+                              )}
+                            </div>
+                            <CardDescription className="flex items-center gap-1 mt-1">
                               <Badge
                                 variant="outline"
-                                className="text-[10px] px-1.5"
+                                className="text-[10px] px-1.5 capitalize"
                               >
                                 {ws.role?.toLowerCase()}
                               </Badge>
                             </CardDescription>
                           </div>
-                          <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+                          <ArrowRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0 mt-0.5" />
                         </CardHeader>
-                        <CardContent>
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                              <Users className="h-3.5 w-3.5" />
-                              <span>
-                                {ws._count?.members} member
-                                {ws._count?.members !== 1 ? "s" : ""}
-                              </span>
-                            </div>
-                            {ws.description && (
-                              <p className="text-xs text-muted-foreground line-clamp-1 max-w-[60%]">
-                                {ws.description}
-                              </p>
-                            )}
+
+                        <CardContent className="pt-0 space-y-3">
+                          {ws.description && (
+                            <p className="text-xs text-muted-foreground line-clamp-2">
+                              {ws.description}
+                            </p>
+                          )}
+
+                          {/* Presence footer */}
+                          <div className="flex items-center justify-between pt-1 border-t border-border/50">
+                            <PresenceStack
+                              onlineCount={onlineCount}
+                              totalMembers={ws._count?.members || 0}
+                              workspaceId={ws.id}
+                            />
+                            <span className="text-[10px] text-muted-foreground">
+                              {ws._count?.members} member
+                              {ws._count?.members !== 1 ? "s" : ""}
+                            </span>
                           </div>
                         </CardContent>
                       </Card>
                     </Link>
                   </motion.div>
-                )
-              )}
+                );
+              })}
             </AnimatePresence>
           </div>
         </div>

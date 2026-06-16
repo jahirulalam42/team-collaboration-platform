@@ -51,6 +51,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { selectOnlineUsers } from "@/app/store/slices/onlineUsersSlice";
+import { useAppSelector } from "@/app/store/hooks";
 
 export default function WorkspacePage() {
   const { workspaceId } = useParams();
@@ -73,6 +75,10 @@ export default function WorkspacePage() {
   );
   const createBoard = useCreateBoard(workspaceId as string);
   const deleteBoard = useDeleteBoard(workspaceId as string);
+
+  const onlineUserIds = useAppSelector((state) =>
+    selectOnlineUsers(state, workspaceId as string)
+  );
 
   // Improved Loading State matching Dashboard
   if (workspaceLoading || membersLoading) {
@@ -269,8 +275,11 @@ export default function WorkspacePage() {
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <p className="text-sm font-medium leading-none">
+                        <p className="text-sm font-medium leading-none flex items-center gap-2">
                           {member.user.name}
+                          {onlineUserIds.includes(member.userId) && (
+                            <span className="inline-block h-2 w-2 rounded-full bg-green-500 ml-1" />
+                          )}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
                           {member.user.email}
@@ -409,11 +418,17 @@ export default function WorkspacePage() {
                       {/* Decorative top bar */}
                       <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary/80 to-primary/20" />
                       <CardHeader className="pb-2 pr-10">
-                        <CardTitle className="text-base flex items-center gap-2 group-hover:text-primary transition-colors">
-                          <FolderKanban className="h-4 w-4 text-primary" />
-                          {board.title}
+                        <CardTitle className="text-base flex items-center gap-2 group-hover:text-primary transition-colors flex flex-row justify-between">
+                          <div className="flex flex-row gap-2 items-center">
+                            <FolderKanban className="h-4 w-4 text-primary" />
+                            {board.title}
+                          </div>
+
+                          <Badge variant="outline" className="text-xs">
+                            {onlineUserIds.length} online
+                          </Badge>
                         </CardTitle>
-                        <CardDescription className="line-clamp-2">
+                        <CardDescription className="line-clamp-2 ">
                           {board.description || "No description"}
                         </CardDescription>
                       </CardHeader>

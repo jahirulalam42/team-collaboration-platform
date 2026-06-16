@@ -5,7 +5,6 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Menu,
-  X,
   LayoutDashboard,
   User,
   LogOut,
@@ -16,7 +15,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Separator } from "@/components/ui/separator";
 import {
   Tooltip,
   TooltipContent,
@@ -27,18 +25,23 @@ import { cn } from "@/lib/utils";
 import { useAppDispatch, useAppSelector } from "@/app/store/hooks";
 import { fetchSession, logout } from "@/app/store/slices/sessionSlice";
 import { Skeleton } from "@/components/ui/skeleton";
+import { NotificationListener } from "@/components/notifications/NotificationListener";
+import { GlobalOnlineProvider } from "@/components/sockets/GlobalOnlineProvider";
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const dispatch = useAppDispatch();
   const { data: session, loading } = useAppSelector((state) => state.session);
+  // onlineUsersSlice shape: Record<workspaceId, string[]>
+  const onlineUsersMap = useAppSelector((state) => state.onlineUsers);
+
+  const totalOnline = Object.values(onlineUsersMap ?? {}).reduce(
+    (sum, userIds) => sum + (userIds as string[]).length,
+    0
+  );
 
   useEffect(() => {
     dispatch(fetchSession());
@@ -93,7 +96,10 @@ export default function DashboardLayout({
                   )}
                 >
                   <item.icon
-                    className={cn("h-5 w-5", isActive && "text-primary")}
+                    className={cn(
+                      "h-5 w-5 shrink-0",
+                      isActive && "text-primary"
+                    )}
                   />
                   {!collapsed && <span>{item.name}</span>}
                 </Link>
@@ -115,12 +121,17 @@ export default function DashboardLayout({
       <div
         className={cn("flex items-center gap-3", collapsed && "justify-center")}
       >
-        <Avatar className="h-8 w-8 ring-2 ring-primary/10">
-          <AvatarImage src={session.user?.image ?? undefined} />
-          <AvatarFallback className="bg-primary/10 text-primary text-xs">
-            {session.user?.name?.[0]?.toUpperCase() || "U"}
-          </AvatarFallback>
-        </Avatar>
+        {/* Avatar with online indicator ring */}
+        <div className="relative shrink-0">
+          <Avatar className="h-8 w-8 ring-2 ring-primary/10">
+            <AvatarImage src={session.user?.image ?? undefined} />
+            <AvatarFallback className="bg-primary/10 text-primary text-xs">
+              {session.user?.name?.[0]?.toUpperCase() || "U"}
+            </AvatarFallback>
+          </Avatar>
+          {/* Online dot */}
+          <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-background" />
+        </div>
         {!collapsed && (
           <div className="flex-1 truncate">
             <p className="text-sm font-medium leading-none">
@@ -139,7 +150,7 @@ export default function DashboardLayout({
                   variant="ghost"
                   size="icon"
                   onClick={handleLogout}
-                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                  className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
                 >
                   <LogOut className="h-4 w-4" />
                 </Button>
@@ -152,6 +163,27 @@ export default function DashboardLayout({
     </div>
   );
 
+  // Online presence pill shown in sidebar footer (expanded only)
+  const OnlinePill = ({ collapsed = false }) => {
+    if (collapsed || totalOnline === 0) return null;
+    return (
+      <div className="px-3 pb-2">
+        <div className="flex items-center gap-2 rounded-lg bg-emerald-500/8 border border-emerald-500/15 px-3 py-2">
+          <span className="relative flex h-2 w-2 shrink-0">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+          </span>
+          <span className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">
+            {totalOnline} member{totalOnline !== 1 ? "s" : ""} online
+          </span>
+        </div>
+      </div>
+    );
+  };
+
+  const currentPageName =
+    navItems.find((item) => item.href === pathname)?.name || "Dashboard";
+
   return (
     <div className="flex h-screen bg-background">
       {/* Desktop Sidebar */}
@@ -161,7 +193,8 @@ export default function DashboardLayout({
           sidebarCollapsed ? "w-16" : "w-64"
         )}
       >
-        <div className="flex h-14 items-center justify-between px-3 border-b">
+        {/* Logo row */}
+        <div className="flex h-14 items-center justify-between px-3 border-b shrink-0">
           {!sidebarCollapsed && (
             <Link
               href="/dashboard"
@@ -173,7 +206,10 @@ export default function DashboardLayout({
           <Button
             variant="ghost"
             size="icon"
-            className={cn("ml-auto h-8 w-8", sidebarCollapsed && "mx-auto")}
+            className={cn(
+              "ml-auto h-8 w-8 shrink-0",
+              sidebarCollapsed && "mx-auto"
+            )}
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
           >
             {sidebarCollapsed ? (
@@ -183,7 +219,9 @@ export default function DashboardLayout({
             )}
           </Button>
         </div>
+
         <NavLinks collapsed={sidebarCollapsed} />
+        <OnlinePill collapsed={sidebarCollapsed} />
         <UserSection collapsed={sidebarCollapsed} />
       </aside>
 
@@ -206,36 +244,73 @@ export default function DashboardLayout({
               </Link>
             </div>
             <NavLinks onItemClick={() => setMobileOpen(false)} />
+            {/* Online pill in mobile sheet */}
+            {totalOnline > 0 && (
+              <div className="px-3 pb-2">
+                <div className="flex items-center gap-2 rounded-lg bg-emerald-500/8 border border-emerald-500/15 px-3 py-2">
+                  <span className="relative flex h-2 w-2 shrink-0">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                  </span>
+                  <span className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">
+                    {totalOnline} member{totalOnline !== 1 ? "s" : ""} online
+                  </span>
+                </div>
+              </div>
+            )}
             <UserSection />
           </div>
         </SheetContent>
       </Sheet>
 
-      {/* Main Content */}
+      {/* Main content */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        <header className="flex h-14 items-center justify-between border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 lg:px-6">
+        <header className="flex h-14 items-center justify-between border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 lg:px-6 shrink-0">
           <div className="flex items-center gap-2">
-            <div className="lg:hidden w-9" />{" "}
-            {/* spacer for mobile menu button */}
-            <h1 className="text-lg font-semibold text-muted-foreground">
-              {navItems.find((item) => item.href === pathname)?.name ||
-                "Dashboard"}
+            {/* Spacer for mobile hamburger */}
+            <div className="lg:hidden w-9" />
+            <h1 className="text-sm font-semibold text-muted-foreground">
+              {currentPageName}
             </h1>
           </div>
           <div className="flex items-center gap-2">
+            {/* Live presence chip in header */}
+            {totalOnline > 0 && (
+              <div className="hidden sm:flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-medium bg-emerald-500/10 rounded-full px-3 py-1">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+                </span>
+                {totalOnline} online
+              </div>
+            )}
             <Button
               variant="ghost"
               size="icon"
               className="h-8 w-8 text-muted-foreground"
+              asChild
             >
-              <Home className="h-4 w-4" />
+              <Link href="/dashboard">
+                <Home className="h-4 w-4" />
+              </Link>
             </Button>
           </div>
         </header>
+
         <main className="flex-1 overflow-auto p-4 md:p-6 lg:p-8">
           {children}
         </main>
+        <NotificationListener />
+        <GlobalOnlineProvider />
       </div>
     </div>
   );
+}
+
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return <DashboardLayoutInner>{children}</DashboardLayoutInner>;
 }

@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { use } from "react";
 import {
   DndContext,
@@ -17,7 +17,13 @@ import { motion } from "framer-motion";
 import { Column } from "@/components/kanban/Column";
 import { TaskCard } from "@/components/kanban/TaskCard";
 import { useBoardData } from "@/hooks/useBoardData";
+import { useSocket } from "@/hooks/useSocket";
+import { OnlineUsers } from "@/components/workspace/OnlineUsers";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
+import { useAppSelector } from "@/app/store/hooks";
+import { useRouter } from "next/navigation";
+import { useWorkspaceMembers } from "@/hooks/useWorkspace";
 
 export default function BoardPage({
   params,
@@ -25,9 +31,93 @@ export default function BoardPage({
   params: Promise<{ workspaceId: string; boardId: string }>;
 }) {
   const { workspaceId, boardId } = use(params);
+  const router = useRouter();
+
+  const { data: session, loading: sessionLoading } = useAppSelector(
+    (state) => state.session
+  );
+  const userId = session?.user?.id;
+
   const queryClient = useQueryClient();
-  const { data: board, isLoading, refetch } = useBoardData(boardId);
+  const {
+    data: board,
+    isLoading: boardLoading,
+    refetch,
+  } = useBoardData(boardId);
   const [activeTask, setActiveTask] = useState<any>(null);
+
+  const socket = useSocket(workspaceId, userId);
+
+  const { data: members, isLoading: membersLoading } =
+    useWorkspaceMembers(workspaceId);
+
+  // Live task move listener
+  useEffect(() => {
+    if (!socket || !boardId) return;
+
+    const handleTaskMoved = (data: {
+      taskId: string;
+      newColumnId: string;
+      newOrder: number;
+      oldColumnId: string;
+      userId: string;
+    }) => {
+      if (data.userId === userId) return;
+
+      queryClient.setQueryData(["board", boardId], (oldBoard: any) => {
+        if (!oldBoard) return oldBoard;
+
+        const oldColumn = oldBoard.columns.find((col: any) =>
+          col.tasks.some((t: any) => t.id === data.taskId)
+        );
+        if (!oldColumn) return oldBoard;
+
+        const taskIndex = oldColumn.tasks.findIndex(
+          (t: any) => t.id === data.taskId
+        );
+        if (taskIndex === -1) return oldBoard;
+
+        const task = oldColumn.tasks[taskIndex];
+
+        const newColumns = oldBoard.columns.map((col: any) => {
+          if (col.id === oldColumn.id) {
+            return {
+              ...col,
+              tasks: col.tasks.filter((t: any) => t.id !== data.taskId),
+            };
+          }
+          return col;
+        });
+
+        const targetColumn = newColumns.find(
+          (col: any) => col.id === data.newColumnId
+        );
+        if (!targetColumn) return oldBoard;
+
+        const finalColumns = newColumns.map((col: any) => {
+          if (col.id === data.newColumnId) {
+            const updatedTasks = [...col.tasks];
+            updatedTasks.splice(data.newOrder, 0, {
+              ...task,
+              columnId: data.newColumnId,
+            });
+            return { ...col, tasks: updatedTasks };
+          }
+          return col;
+        });
+
+        return { ...oldBoard, columns: finalColumns };
+      });
+    };
+
+    socket.on("task:moved", handleTaskMoved);
+
+    return () => {
+      socket.off("task:moved", handleTaskMoved);
+    };
+  }, [socket, boardId, userId, queryClient]);
+
+  // ❌ REMOVED the notification listener – now global
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -102,28 +192,54 @@ export default function BoardPage({
 
     queryClient.setQueryData(["board", boardId], optimisticBoard);
 
+    const newOrder =
+      insertIndex > activeTaskIndex && activeColumn.id === overColumn.id
+        ? insertIndex - 1
+        : insertIndex;
+
+    const movePayload = {
+      taskId: active.id,
+      newColumnId: overColumn.id,
+      newOrder,
+      oldColumnId: activeColumn.id,
+    };
+
     try {
       const res = await fetch("/api/tasks/move", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          taskId: active.id,
-          newColumnId: overColumn.id,
-          newOrder:
-            insertIndex > activeTaskIndex && activeColumn.id === overColumn.id
-              ? insertIndex - 1
-              : insertIndex,
-          oldColumnId: activeColumn.id,
-        }),
+        body: JSON.stringify(movePayload),
       });
       if (!res.ok) throw new Error("Failed to move task");
+
+      if (socket && socket.connected) {
+        socket.emit("task:move", movePayload);
+      } else {
+        console.warn("Socket not connected, skipping emit");
+      }
     } catch (error) {
       queryClient.setQueryData(["board", boardId], originalBoard);
+      toast.error("Failed to move task");
       console.error("Drag drop error:", error);
     }
   }
 
-  if (isLoading) {
+  const handleAssign = async (taskId: string, assigneeId: string | null) => {
+    try {
+      const res = await fetch(`/api/tasks/${taskId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assigneeId }),
+      });
+      if (!res.ok) throw new Error("Failed to assign task");
+      await queryClient.invalidateQueries({ queryKey: ["board", boardId] });
+      toast.success(assigneeId ? "Task assigned" : "Task unassigned");
+    } catch {
+      toast.error("Failed to assign task");
+    }
+  };
+
+  if (sessionLoading || boardLoading) {
     return (
       <div className="flex gap-6 p-6 overflow-x-auto h-full">
         {[...Array(3)].map((_, i) => (
@@ -137,28 +253,46 @@ export default function BoardPage({
     );
   }
 
+  if (!userId) {
+    return <div className="p-6">Please log in to view this board.</div>;
+  }
+
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCorners}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-    >
-      <div className="flex gap-6 p-6 overflow-x-auto h-full items-start">
-        {board?.columns.map((column: any, index: number) => (
-          <motion.div
-            key={column.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-          >
-            <Column column={column} boardId={boardId} />
-          </motion.div>
-        ))}
+    <>
+      <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6 py-2 flex items-center justify-between">
+        <div className="text-sm text-muted-foreground">
+          {board?.title || "Board"}
+        </div>
+        <OnlineUsers workspaceId={workspaceId} userId={userId} />
       </div>
-      <DragOverlay dropAnimation={null}>
-        {activeTask ? <TaskCard task={activeTask} isOverlay /> : null}
-      </DragOverlay>
-    </DndContext>
+
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="flex gap-6 p-6 overflow-x-auto h-full items-start">
+          {board?.columns.map((column: any, index: number) => (
+            <motion.div
+              key={column.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+            >
+              <Column
+                column={column}
+                boardId={boardId}
+                members={members}
+                onAssign={handleAssign}
+              />
+            </motion.div>
+          ))}
+        </div>
+        <DragOverlay dropAnimation={null}>
+          {activeTask ? <TaskCard task={activeTask} isOverlay /> : null}
+        </DragOverlay>
+      </DndContext>
+    </>
   );
 }

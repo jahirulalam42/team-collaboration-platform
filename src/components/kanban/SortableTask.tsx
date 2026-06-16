@@ -7,9 +7,16 @@ import { TaskCard } from "./TaskCard";
 interface SortableTaskProps {
   task: any;
   onDelete: (taskId: string) => void;
+  members?: any[];
+  onAssign?: (taskId: string, assigneeId: string | null) => void;
 }
 
-export function SortableTask({ task, onDelete }: SortableTaskProps) {
+export function SortableTask({
+  task,
+  onDelete,
+  members,
+  onAssign,
+}: SortableTaskProps) {
   const {
     attributes,
     listeners,
@@ -39,7 +46,12 @@ export function SortableTask({ task, onDelete }: SortableTaskProps) {
       {...listeners}
       className="mt-2 w-full" // Ensures full width and consistent spacing
     >
-      <TaskCard task={task} onDelete={onDelete} />
+      <TaskCard
+        task={task}
+        onDelete={onDelete}
+        members={members}
+        onAssign={onAssign}
+      />
     </div>
   );
 }
