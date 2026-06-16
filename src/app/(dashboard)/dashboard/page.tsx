@@ -40,7 +40,11 @@ export default function DashboardPage() {
 
   // Calculate total members across all workspaces
   const totalMembers =
-    workspaces?.reduce((sum, ws) => sum + (ws._count?.members || 0), 0) || 0;
+    workspaces?.reduce(
+      (sum: any, ws: { _count: { members: any } }) =>
+        sum + (ws._count?.members || 0),
+      0
+    ) || 0;
 
   if (isLoading) {
     return (
@@ -219,32 +223,7 @@ export default function DashboardPage() {
                 (
                   ws: {
                     id: Key | null | undefined;
-                    name:
-                      | string
-                      | number
-                      | bigint
-                      | boolean
-                      | ReactElement<
-                          unknown,
-                          string | JSXElementConstructor<any>
-                        >
-                      | Iterable<ReactNode>
-                      | Promise<
-                          | string
-                          | number
-                          | bigint
-                          | boolean
-                          | ReactPortal
-                          | ReactElement<
-                              unknown,
-                              string | JSXElementConstructor<any>
-                            >
-                          | Iterable<ReactNode>
-                          | null
-                          | undefined
-                        >
-                      | null
-                      | undefined;
+                    name: string;
                     role: string;
                     _count: {
                       members:
@@ -316,7 +295,7 @@ export default function DashboardPage() {
                         <CardHeader className="flex flex-row items-center gap-3 pb-3">
                           <Avatar className="h-12 w-12 bg-gradient-to-br from-primary/20 to-primary/5 shadow-sm">
                             <AvatarFallback className="text-primary font-semibold text-lg">
-                              {ws.name[0].toUpperCase()}
+                              {ws?.name[0]?.toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
                           <div className="flex-1">

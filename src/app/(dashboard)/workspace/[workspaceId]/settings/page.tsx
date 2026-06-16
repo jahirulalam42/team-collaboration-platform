@@ -127,7 +127,7 @@ export default function WorkspaceSettingsPage() {
               <Input id="name" {...register("name")} />
               {errors.name && (
                 <p className="text-sm text-destructive">
-                  {errors.name.message}
+                  {errors.name.message as string}
                 </p>
               )}
             </div>
@@ -146,7 +146,7 @@ export default function WorkspaceSettingsPage() {
               </div>
               {errors.slug && (
                 <p className="text-sm text-destructive">
-                  {errors.slug.message}
+                  {errors.slug.message as string}
                 </p>
               )}
               <p className="text-xs text-muted-foreground">

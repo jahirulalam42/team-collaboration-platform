@@ -25,7 +25,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    authClient.getSession().then(({ data }) => {
+    authClient.getSession().then(({ data }: any) => {
       setSession(data);
       setIsLoading(false);
     });
