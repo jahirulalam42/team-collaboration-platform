@@ -14,7 +14,7 @@ export function OnlineUsersProvider() {
   const pathname = usePathname();
   const dispatch = useAppDispatch();
   const { data: session } = useAppSelector((state) => state.session);
-  const userId = session?.user?.id;
+  const userId: any = session?.user?.id;
 
   const match = pathname.match(/^\/workspace\/([^\/]+)/);
   const workspaceId = match ? match[1] : null;

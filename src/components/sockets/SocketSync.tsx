@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { useAppDispatch, useAppSelector } from "@/app/store/hooks";
 import { useSocket } from "@/hooks/useSocket";
 // import {
 //   setOnlineUsers,
@@ -10,7 +10,9 @@ import { useSocket } from "@/hooks/useSocket";
 // } from "@/store/slices/onlineUsersSlice";
 
 export function SocketSync() {
-  const { data: session } = useAppSelector((state) => state.session);
+  const { data: session } = useAppSelector(
+    (state: { session: any }) => state.session
+  );
   const userId = session?.user?.id;
 
   // We need a workspaceId – we can get it from the URL or use a global context.

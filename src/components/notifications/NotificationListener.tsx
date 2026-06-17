@@ -10,7 +10,7 @@ export function NotificationListener() {
   const pathname = usePathname();
   const router = useRouter();
   const { data: session } = useAppSelector((state) => state.session);
-  const userId = session?.user?.id;
+  const userId: any = session?.user?.id;
 
   // Extract workspaceId from URL: /workspace/[workspaceId]/...
   const match = pathname.match(/^\/workspace\/([^\/]+)/);
