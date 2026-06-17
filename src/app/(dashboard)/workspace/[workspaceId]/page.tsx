@@ -53,6 +53,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { selectOnlineUsers } from "@/app/store/slices/onlineUsersSlice";
 import { useAppSelector } from "@/app/store/hooks";
+import { ActivityFeed } from "@/components/activity/ActivityFeed";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function WorkspacePage() {
   const { workspaceId } = useParams();
@@ -349,6 +351,17 @@ export default function WorkspacePage() {
           </CardContent>
         </Card>
       </div>
+
+      <Tabs defaultValue="boards" className="mt-8">
+        <TabsList>
+          <TabsTrigger value="boards">Boards</TabsTrigger>
+          <TabsTrigger value="activity">Activity</TabsTrigger>
+        </TabsList>
+        <TabsContent value="boards">{/* existing boards grid */}</TabsContent>
+        <TabsContent value="activity">
+          <ActivityFeed workspaceId={workspaceId as string} limit={30} />
+        </TabsContent>
+      </Tabs>
 
       {/* Boards Section - Staggered Cards matching Dashboard Workspace Grid */}
       <div className="space-y-4">

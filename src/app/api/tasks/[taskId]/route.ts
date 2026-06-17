@@ -4,6 +4,64 @@ import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { emitToWorkspace } from "@/lib/socket-emitter";
 
+// -------------------- GET --------------------
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ taskId: string }> }
+) {
+  try {
+    const { taskId } = await params;
+
+    const session = await auth.api.getSession({
+      query: { disableCookieCache: true },
+      headers: await headers(),
+    });
+
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // 1. Fetch task with necessary relations
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      include: {
+        assignee: { select: { id: true, name: true, image: true } },
+        createdBy: { select: { id: true, name: true, image: true } },
+        board: { include: { workspace: true } },
+      },
+    });
+
+    if (!task) {
+      return NextResponse.json({ error: "Task not found" }, { status: 404 });
+    }
+
+    // 2. Verify user is a member of the workspace
+    const membership = await prisma.workspaceMember.findUnique({
+      where: {
+        workspaceId_userId: {
+          workspaceId: task.board.workspaceId,
+          userId: session.user.id,
+        },
+      },
+    });
+
+    if (!membership) {
+      return NextResponse.json(
+        { error: "You are not a member of this workspace" },
+        { status: 403 }
+      );
+    }
+
+    return NextResponse.json(task);
+  } catch (error) {
+    console.error("Error fetching task:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ taskId: string }> }

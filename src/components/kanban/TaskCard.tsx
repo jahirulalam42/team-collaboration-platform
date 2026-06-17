@@ -22,6 +22,7 @@ interface TaskCardProps {
     assignee?: { name: string; image?: string; id: string } | null;
   };
   isOverlay?: boolean;
+  onClick?: (taskId: string) => void;
   onDelete?: (taskId: string) => void;
   members?: {
     userId: string;
@@ -33,6 +34,7 @@ interface TaskCardProps {
 export function TaskCard({
   task,
   isOverlay = false,
+  onClick,
   onDelete,
   members,
   onAssign,
@@ -46,17 +48,23 @@ export function TaskCard({
     onAssign(task.id, value === "unassigned" ? null : value);
   };
 
+  const handleClick = () => {
+    if (onClick) onClick(task.id);
+  };
+
   return (
     <Card
       className={`
-        w-full group cursor-grab active:cursor-grabbing
-        ${
-          isOverlay
-            ? "shadow-2xl ring-2 ring-primary/20 scale-[1.02] rotate-1"
-            : "hover:shadow-md hover:border-primary/30"
-        }
-        transition-all duration-200 bg-background
-      `}
+    w-full group
+    ${
+      isOverlay
+        ? "shadow-2xl ring-2 ring-primary/20 scale-[1.02] rotate-1"
+        : "hover:shadow-md hover:border-primary/30"
+    }
+    transition-all duration-200 bg-background
+    ${onClick ? "cursor-pointer" : "cursor-grab active:cursor-grabbing"}
+  `}
+      onClick={handleClick}
     >
       <CardContent className="p-3">
         <div className="flex justify-between items-start gap-2">

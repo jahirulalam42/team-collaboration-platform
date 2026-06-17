@@ -9,6 +9,7 @@ interface SortableTaskProps {
   onDelete: (taskId: string) => void;
   members?: any[];
   onAssign?: (taskId: string, assigneeId: string | null) => void;
+  onClick?: (taskId: string) => void;
 }
 
 export function SortableTask({
@@ -16,6 +17,7 @@ export function SortableTask({
   onDelete,
   members,
   onAssign,
+  onClick,
 }: SortableTaskProps) {
   const {
     attributes,
@@ -51,6 +53,7 @@ export function SortableTask({
         onDelete={onDelete}
         members={members}
         onAssign={onAssign}
+        onClick={onClick}
       />
     </div>
   );

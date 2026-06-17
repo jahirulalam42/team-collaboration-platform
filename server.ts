@@ -116,6 +116,11 @@ io.on("connection", (socket) => {
       socket.emit("users:online", { workspaceId: wsId, userIds: [] });
     }
   });
+
+  socket.on("comment:added", (data) => {
+    // data: { taskId, commentId }
+    socket.to(`workspace:${workspaceId}`).emit("comment:added", data);
+  });
 });
 
 const PORT = 3001;

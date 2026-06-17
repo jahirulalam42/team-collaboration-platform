@@ -16,6 +16,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { Column } from "@/components/kanban/Column";
 import { TaskCard } from "@/components/kanban/TaskCard";
+import { TaskModal } from "@/components/tasks/TaskModal";
 import { useBoardData } from "@/hooks/useBoardData";
 import { useSocket } from "@/hooks/useSocket";
 import { OnlineUsers } from "@/components/workspace/OnlineUsers";
@@ -32,6 +33,7 @@ export default function BoardPage({
 }) {
   const { workspaceId, boardId } = use(params);
   const router = useRouter();
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   const { data: session, loading: sessionLoading } = useAppSelector(
     (state) => state.session
@@ -47,11 +49,10 @@ export default function BoardPage({
   const [activeTask, setActiveTask] = useState<any>(null);
 
   const socket = useSocket(workspaceId, userId);
-
   const { data: members, isLoading: membersLoading } =
     useWorkspaceMembers(workspaceId);
 
-  // Live task move listener
+  // ---------- Live task move ----------
   useEffect(() => {
     if (!socket || !boardId) return;
 
@@ -117,8 +118,33 @@ export default function BoardPage({
     };
   }, [socket, boardId, userId, queryClient]);
 
-  // ❌ REMOVED the notification listener – now global
+  // ---------- Live comment/attachment updates ----------
+  useEffect(() => {
+    if (!socket) return;
 
+    const handleCommentAdded = ({ taskId }: { taskId: string }) => {
+      // If the modal is open for this task, refetch comments
+      if (selectedTaskId === taskId) {
+        queryClient.invalidateQueries({ queryKey: ["comments", taskId] });
+      }
+    };
+
+    const handleAttachmentAdded = ({ taskId }: { taskId: string }) => {
+      if (selectedTaskId === taskId) {
+        queryClient.invalidateQueries({ queryKey: ["attachments", taskId] });
+      }
+    };
+
+    socket.on("comment:added", handleCommentAdded);
+    socket.on("attachment:added", handleAttachmentAdded);
+
+    return () => {
+      socket.off("comment:added", handleCommentAdded);
+      socket.off("attachment:added", handleAttachmentAdded);
+    };
+  }, [socket, selectedTaskId, queryClient]);
+
+  // ---------- Drag & Drop ----------
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
@@ -224,6 +250,21 @@ export default function BoardPage({
     }
   }
 
+  // ---------- Task deletion ----------
+  const handleDeleteTask = async (taskId: string) => {
+    try {
+      const res = await fetch(`/api/tasks/${taskId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error();
+      await queryClient.invalidateQueries({ queryKey: ["board", boardId] });
+      toast.success("Task deleted");
+      // If the modal is open for this task, close it
+      if (selectedTaskId === taskId) setSelectedTaskId(null);
+    } catch {
+      toast.error("Failed to delete task");
+    }
+  };
+
+  // ---------- Task assignment ----------
   const handleAssign = async (taskId: string, assigneeId: string | null) => {
     try {
       const res = await fetch(`/api/tasks/${taskId}`, {
@@ -239,6 +280,7 @@ export default function BoardPage({
     }
   };
 
+  // ---------- Loading states ----------
   if (sessionLoading || boardLoading) {
     return (
       <div className="flex gap-6 p-6 overflow-x-auto h-full">
@@ -259,6 +301,7 @@ export default function BoardPage({
 
   return (
     <>
+      {/* Header */}
       <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6 py-2 flex items-center justify-between">
         <div className="text-sm text-muted-foreground">
           {board?.title || "Board"}
@@ -266,6 +309,7 @@ export default function BoardPage({
         <OnlineUsers workspaceId={workspaceId} userId={userId} />
       </div>
 
+      {/* Board */}
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}
@@ -285,14 +329,36 @@ export default function BoardPage({
                 boardId={boardId}
                 members={members}
                 onAssign={handleAssign}
+                onTaskClick={(taskId: string) => setSelectedTaskId(taskId)}
+                onDeleteTask={handleDeleteTask}
               />
             </motion.div>
           ))}
         </div>
         <DragOverlay dropAnimation={null}>
-          {activeTask ? <TaskCard task={activeTask} isOverlay /> : null}
+          {activeTask && (
+            <TaskCard
+              task={activeTask}
+              isOverlay
+              members={members}
+              onAssign={handleAssign}
+              onDelete={() => handleDeleteTask(activeTask.id)}
+              onClick={() => setSelectedTaskId(activeTask.id)}
+            />
+          )}
         </DragOverlay>
       </DndContext>
+
+      {/* Task Modal */}
+      <TaskModal
+        taskId={selectedTaskId}
+        open={!!selectedTaskId}
+        onClose={() => setSelectedTaskId(null)}
+        workspaceId={workspaceId}
+        onDelete={handleDeleteTask}
+        onAssign={handleAssign}
+        members={members}
+      />
     </>
   );
 }

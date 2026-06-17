@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Home,
+  Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -27,10 +28,12 @@ import { fetchSession, logout } from "@/app/store/slices/sessionSlice";
 import { Skeleton } from "@/components/ui/skeleton";
 import { NotificationListener } from "@/components/notifications/NotificationListener";
 import { GlobalOnlineProvider } from "@/components/sockets/GlobalOnlineProvider";
+import { SearchDialog } from "@/components/search/SearchDialog";
 
 function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const dispatch = useAppDispatch();
@@ -42,6 +45,9 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     userIds.forEach((id) => allOnlineUserIds.add(id));
   });
   const totalOnline = allOnlineUserIds.size;
+
+  const match = pathname.match(/^\/workspace\/([^\/]+)/);
+  const workspaceId = match ? match[1] : "";
 
   useEffect(() => {
     dispatch(fetchSession());
@@ -294,6 +300,15 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                 <Home className="h-4 w-4" />
               </Link>
             </Button>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground"
+              onClick={() => setSearchOpen(true)}
+            >
+              <Search className="h-4 w-4" />
+            </Button>
           </div>
         </header>
 
@@ -302,6 +317,11 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         </main>
         <NotificationListener />
         <GlobalOnlineProvider />
+        <SearchDialog
+          open={searchOpen}
+          onClose={() => setSearchOpen(false)}
+          workspaceId={workspaceId}
+        />
       </div>
     </div>
   );
