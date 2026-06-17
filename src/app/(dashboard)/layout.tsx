@@ -37,11 +37,11 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const { data: session, loading } = useAppSelector((state) => state.session);
   // onlineUsersSlice shape: Record<workspaceId, string[]>
   const onlineUsersMap = useAppSelector((state) => state.onlineUsers);
-
-  const totalOnline = Object.values(onlineUsersMap ?? {}).reduce(
-    (sum, userIds) => sum + (userIds as string[]).length,
-    0
-  );
+  const allOnlineUserIds = new Set<string>();
+  Object.values(onlineUsersMap).forEach((userIds) => {
+    userIds.forEach((id) => allOnlineUserIds.add(id));
+  });
+  const totalOnline = allOnlineUserIds.size;
 
   useEffect(() => {
     dispatch(fetchSession());

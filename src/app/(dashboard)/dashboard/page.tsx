@@ -28,6 +28,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { useUniqueMembers } from "@/hooks/useUniqueMembers";
 
 interface Workspace {
   id: string;
@@ -105,14 +106,14 @@ function PresenceStack({
 export default function DashboardPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const { data: workspaces, isLoading, error } = useWorkspaces();
+  const { data: uniqueMemberCount } = useUniqueMembers();
   // onlineUsersSlice shape: Record<workspaceId, string[]>
   const onlineUsersMap = useAppSelector((state) => state.onlineUsers);
-
-  const totalMembers =
-    workspaces?.reduce(
-      (sum: number, ws: Workspace) => sum + (ws._count?.members || 0),
-      0
-    ) || 0;
+  const allOnlineUserIds = new Set<string>();
+  Object.values(onlineUsersMap).forEach((userIds) => {
+    userIds.forEach((id) => allOnlineUserIds.add(id));
+  });
+  const totalOnline = allOnlineUserIds.size;
 
   // Count online users per workspace from Redux store
   const onlineByWorkspace: Record<string, number> = {};
@@ -122,10 +123,10 @@ export default function DashboardPage() {
     }
   }
 
-  const totalOnline = Object.values(onlineByWorkspace).reduce(
-    (a, b) => a + b,
-    0
-  );
+  // const totalOnline = Object.values(onlineByWorkspace).reduce(
+  //   (a, b) => a + b,
+  //   0
+  // );
 
   if (isLoading) {
     return (
@@ -206,7 +207,9 @@ export default function DashboardPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">{totalMembers}</div>
+              <div className="text-3xl font-bold">
+                {uniqueMemberCount ?? "—"}
+              </div>
               <p className="text-xs text-muted-foreground mt-1">
                 across all workspaces
               </p>
@@ -325,11 +328,8 @@ export default function DashboardPage() {
                       <Card className="h-full transition-all duration-200 hover:shadow-lg hover:border-primary/30 group cursor-pointer overflow-hidden relative">
                         {/* Top accent bar — green if people are online */}
                         <div
-                          className={`absolute top-0 left-0 right-0 h-[3px] transition-all duration-300 ${
-                            hasActivity
-                              ? "bg-gradient-to-r from-emerald-400 to-emerald-300/50"
-                              : "bg-gradient-to-r from-primary/70 to-primary/20"
-                          }`}
+                          className={`absolute top-0 left-0 right-0 h-[3px] transition-all duration-300 bg-gradient-to-r from-primary/70 to-primary/20
+                          `}
                         />
 
                         <CardHeader className="flex flex-row items-start gap-3 pb-3 pt-5">
