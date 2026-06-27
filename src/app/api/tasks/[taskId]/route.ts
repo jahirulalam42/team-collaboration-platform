@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { emitToWorkspace } from "@/lib/socket-emitter";
+import { createNotification } from "@/lib/create-notification";
 
 // -------------------- GET --------------------
 export async function GET(
@@ -165,12 +166,25 @@ export async function PATCH(
       if (assigneeUser) {
         const workspaceId = existingTask.board.workspaceId;
         const assignedByName = session.user.name || "Someone";
+        const taskTitle = existingTask.title;
+        const boardId = existingTask.boardId;
 
+        // 3a. Persistent notification (bell icon)
+        await createNotification({
+          userId: assigneeId,
+          type: "task_assigned",
+          title: "New Task Assigned",
+          message: `${assignedByName} assigned you "${taskTitle}"`,
+          link: `/workspace/${workspaceId}/board/${boardId}`,
+          workspaceId,
+        });
+
+        // 3b. Real‑time toast (existing)
         await emitToWorkspace(workspaceId, "notification", {
-          message: `${assignedByName} assigned you a task: "${existingTask.title}"`,
+          message: `${assignedByName} assigned you a task: "${taskTitle}"`,
           taskId: taskId,
           userId: assigneeId,
-          boardId: existingTask.boardId,
+          boardId,
         });
       }
     }

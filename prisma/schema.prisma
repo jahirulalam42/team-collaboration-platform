@@ -56,6 +56,8 @@ model User {
   comments        Comment[]
   attachments     Attachment[]
 
+   notifications   Notification[]
+
   @@unique([email])
   @@map("user")
 }
@@ -277,3 +279,21 @@ model Attachment {
   @@map("attachments")
 }
 
+
+// ========== Notifications ==========
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String   // recipient
+  type      String   // 'task_assigned', 'comment_added', etc.
+  title     String   // e.g., "Task Assigned"
+  message   String   // e.g., "Jahirul assigned you 'Fix login bug'"
+  link      String?  // URL to the task (e.g., "/workspace/.../board/...")
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([read])
+  @@map("notifications")
+}

@@ -29,6 +29,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { NotificationListener } from "@/components/notifications/NotificationListener";
 import { GlobalOnlineProvider } from "@/components/sockets/GlobalOnlineProvider";
 import { SearchDialog } from "@/components/search/SearchDialog";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -38,7 +39,6 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const { data: session, loading } = useAppSelector((state) => state.session);
-  // onlineUsersSlice shape: Record<workspaceId, string[]>
   const onlineUsersMap = useAppSelector((state) => state.onlineUsers);
   const allOnlineUserIds = new Set<string>();
   Object.values(onlineUsersMap).forEach((userIds) => {
@@ -127,7 +127,6 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
       <div
         className={cn("flex items-center gap-3", collapsed && "justify-center")}
       >
-        {/* Avatar with online indicator ring */}
         <div className="relative shrink-0">
           <Avatar className="h-8 w-8 ring-2 ring-primary/10">
             <AvatarImage src={session.user?.image ?? undefined} />
@@ -135,7 +134,6 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
               {session.user?.name?.[0]?.toUpperCase() || "U"}
             </AvatarFallback>
           </Avatar>
-          {/* Online dot */}
           <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-background" />
         </div>
         {!collapsed && (
@@ -169,7 +167,6 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     </div>
   );
 
-  // Online presence pill shown in sidebar footer (expanded only)
   const OnlinePill = ({ collapsed = false }) => {
     if (collapsed || totalOnline === 0) return null;
     return (
@@ -199,7 +196,6 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
           sidebarCollapsed ? "w-16" : "w-64"
         )}
       >
-        {/* Logo row */}
         <div className="flex h-14 items-center justify-between px-3 border-b shrink-0">
           {!sidebarCollapsed && (
             <Link
@@ -250,7 +246,6 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
               </Link>
             </div>
             <NavLinks onItemClick={() => setMobileOpen(false)} />
-            {/* Online pill in mobile sheet */}
             {totalOnline > 0 && (
               <div className="px-3 pb-2">
                 <div className="flex items-center gap-2 rounded-lg bg-emerald-500/8 border border-emerald-500/15 px-3 py-2">
@@ -273,14 +268,12 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
       <div className="flex flex-1 flex-col overflow-hidden">
         <header className="flex h-14 items-center justify-between border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 lg:px-6 shrink-0">
           <div className="flex items-center gap-2">
-            {/* Spacer for mobile hamburger */}
             <div className="lg:hidden w-9" />
             <h1 className="text-sm font-semibold text-muted-foreground">
               {currentPageName}
             </h1>
           </div>
           <div className="flex items-center gap-2">
-            {/* Live presence chip in header */}
             {totalOnline > 0 && (
               <div className="hidden sm:flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-medium bg-emerald-500/10 rounded-full px-3 py-1">
                 <span className="relative flex h-1.5 w-1.5">
@@ -301,6 +294,10 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
               </Link>
             </Button>
 
+            {/* ✅ Notification Bell */}
+            <NotificationBell />
+
+            {/* Search Button */}
             <Button
               variant="ghost"
               size="icon"

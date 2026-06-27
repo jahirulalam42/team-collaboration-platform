@@ -2,11 +2,13 @@
 import { configureStore } from "@reduxjs/toolkit";
 import sessionReducer from "./slices/sessionSlice";
 import onlineUsersReducer from "./slices/onlineUsersSlice";
+import notificationReducer from "./slices/notificationSlice";
 
 export const store = configureStore({
   reducer: {
     session: sessionReducer,
     onlineUsers: onlineUsersReducer,
+    notifications: notificationReducer,
   },
 });
 

@@ -3,12 +3,17 @@
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { useAppSelector } from "@/app/store/hooks";
+import { useAppSelector, useAppDispatch } from "@/app/store/hooks";
 import { useSocket } from "@/hooks/useSocket";
+import {
+  addNotification,
+  Notification,
+} from "@/app/store/slices/notificationSlice";
 
 export function NotificationListener() {
   const pathname = usePathname();
   const router = useRouter();
+  const dispatch = useAppDispatch();
   const { data: session } = useAppSelector((state) => state.session);
   const userId: any = session?.user?.id;
 
@@ -21,17 +26,15 @@ export function NotificationListener() {
   useEffect(() => {
     if (!socket) return;
 
+    // ----- 1. Real‑time toast notification (existing) -----
     const handleNotification = (data: {
       message: string;
       taskId?: string;
-      userId?: string; // target user (if any)
+      userId?: string;
       boardId?: string;
     }) => {
-      // ✅ Only show the toast if the notification is intended for the current user
-      if (data.userId && data.userId !== userId) {
-        // This notification is for someone else – ignore it
-        return;
-      }
+      // Only show if the notification is for the current user
+      if (data.userId && data.userId !== userId) return;
 
       toast(data.message, {
         action: {
@@ -40,7 +43,6 @@ export function NotificationListener() {
             if (data.boardId) {
               router.push(`/workspace/${workspaceId}/board/${data.boardId}`);
             } else if (data.taskId) {
-              // Fallback: go to workspace page
               router.push(`/workspace/${workspaceId}`);
             }
           },
@@ -49,12 +51,25 @@ export function NotificationListener() {
       });
     };
 
+    // ----- 2. Persistent notification (bell icon) -----
+    const handleNewNotification = (data: {
+      notification: Notification;
+      userId: string;
+    }) => {
+      // Only add if it's for the current user
+      if (data.userId === userId) {
+        dispatch(addNotification(data.notification));
+      }
+    };
+
     socket.on("notification", handleNotification);
+    socket.on("notification:new", handleNewNotification);
 
     return () => {
       socket.off("notification", handleNotification);
+      socket.off("notification:new", handleNewNotification);
     };
-  }, [socket, workspaceId, userId, router]);
+  }, [socket, workspaceId, userId, router, dispatch]);
 
   return null;
 }
