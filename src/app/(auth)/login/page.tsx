@@ -10,7 +10,7 @@ export const metadata = { title: "Sign in — SyncSpace" };
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: { callbackUrl?: string };
+  searchParams: Promise<{ callbackUrl?: string }>;
 }) {
   const session = await auth.api.getSession({
     query: {
@@ -20,9 +20,11 @@ export default async function LoginPage({
   });
   if (session) redirect("/");
 
+  const { callbackUrl = "/" } = await searchParams;
+
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
-      <LoginForm callbackUrl={searchParams?.callbackUrl ?? "/"} />
+      <LoginForm callbackUrl={callbackUrl} />
     </div>
   );
 }

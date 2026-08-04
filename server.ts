@@ -126,7 +126,7 @@ io.on("connection", (socket: any) => {
   });
 });
 
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.NEXT_PUBLIC_SOCKET_SERVER_PORT || 3001;
 server.listen(PORT, () => {
   console.log(`Socket.IO server running on port ${PORT}`);
 });
