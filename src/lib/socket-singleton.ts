@@ -1,7 +1,8 @@
 // lib/socket-singleton.ts
 import { io, Socket } from "socket.io-client";
 
-const SOCKET_URL = "http://localhost:3001";
+const SOCKET_URL =
+  process.env.NEXT_PUBLIC_SOCKET_SERVER_URL || "http://localhost:3001";
 const activeSockets = new Map<string, { socket: Socket; refCount: number }>();
 
 function getKey(workspaceId: string, userId: string) {
