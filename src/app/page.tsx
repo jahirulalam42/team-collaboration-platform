@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 
 import { Button } from "@/components/ui/button";
 import prisma from "@/lib/prisma";
+import { redirect } from "next/navigation";
 
 export default async function Home() {
   const users = await prisma.user.findMany();
@@ -10,8 +11,13 @@ export default async function Home() {
     query: {
       disableCookieCache: true,
     },
-    headers: await headers(), // headers containing the user's session token
+    headers: await headers(),
   });
+  if (session) {
+    redirect("/dashboard");
+  } else {
+    redirect("/login");
+  }
   console.log("Session", session);
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center -mt-16">
