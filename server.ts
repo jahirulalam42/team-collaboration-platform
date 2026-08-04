@@ -15,7 +15,7 @@ const io = new Server(server, {
 // This allows us to track multiple tabs per user
 const onlineUsers = new Map();
 
-io.on("connection", (socket) => {
+io.on("connection", (socket: any) => {
   const { userId, workspaceId } = socket.handshake.auth;
   if (!userId || !workspaceId) {
     socket.disconnect();
@@ -52,7 +52,7 @@ io.on("connection", (socket) => {
   socket.emit("users:online", { workspaceId, userIds: usersOnline });
 
   // --- Task Events ---
-  socket.on("task:move", (data) => {
+  socket.on("task:move", (data: any) => {
     socket.to(`workspace:${workspaceId}`).emit("task:moved", {
       ...data,
       userId,
@@ -60,18 +60,21 @@ io.on("connection", (socket) => {
   });
 
   // ✅ FIX: API Broadcast Relay (used by Next.js API routes)
-  socket.on("broadcast-to-workspace", ({ workspaceId: wsId, event, data }) => {
-    io.to(`workspace:${wsId}`).emit(event, data);
-  });
+  socket.on(
+    "broadcast-to-workspace",
+    ({ workspaceId: wsId, event, data }: any) => {
+      io.to(`workspace:${wsId}`).emit(event, data);
+    }
+  );
 
   // --- Typing Events ---
-  socket.on("typing:start", ({ taskId }) => {
+  socket.on("typing:start", ({ taskId }: any) => {
     socket
       .to(`workspace:${workspaceId}`)
       .emit("typing:start", { userId, taskId });
   });
 
-  socket.on("typing:stop", ({ taskId }) => {
+  socket.on("typing:stop", ({ taskId }: any) => {
     socket
       .to(`workspace:${workspaceId}`)
       .emit("typing:stop", { userId, taskId });
@@ -103,7 +106,7 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("join-workspace", (id) => {
+  socket.on("join-workspace", (id: any) => {
     socket.join(`workspace:${id}`);
   });
 
@@ -117,7 +120,7 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("comment:added", (data) => {
+  socket.on("comment:added", (data: any) => {
     // data: { taskId, commentId }
     socket.to(`workspace:${workspaceId}`).emit("comment:added", data);
   });

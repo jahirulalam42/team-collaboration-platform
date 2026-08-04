@@ -33,9 +33,9 @@ import { useUniqueMembers } from "@/hooks/useUniqueMembers";
 interface Workspace {
   id: string;
   name: string;
-  role: string;
+  role?: string;
   description?: string | null;
-  _count: { members: number };
+  _count?: { members: number };
 }
 
 // Generates a stable hue from a string so each user gets a consistent color

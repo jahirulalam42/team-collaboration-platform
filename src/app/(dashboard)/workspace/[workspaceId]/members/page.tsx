@@ -144,139 +144,88 @@ export default function WorkspaceMembersPage() {
             />
           </div>
           <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>User</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Joined</TableHead>
-                  {canManage && <TableHead className="w-[50px]"></TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredMembers?.map(
-                  (member: {
-                    id: Key | null | undefined;
-                    user: {
-                      image: any;
-                      name: string;
-                      email: string;
-                    };
-                    role:
-                      | string
-                      | number
-                      | bigint
-                      | boolean
-                      | ReactElement<
-                          unknown,
-                          string | JSXElementConstructor<any>
-                        >
-                      | Iterable<ReactNode>
-                      | Promise<
-                          | string
-                          | number
-                          | bigint
-                          | boolean
-                          | ReactPortal
-                          | ReactElement<
-                              unknown,
-                              string | JSXElementConstructor<any>
-                            >
-                          | Iterable<ReactNode>
-                          | null
-                          | undefined
-                        >
-                      | null
-                      | undefined;
-                    joinedAt: string | number | Date;
-                    userId: string;
-                  }) => (
-                    <TableRow key={member.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage src={member.user.image || ""} />
-                            <AvatarFallback>
-                              {member.user?.name?.charAt(0) ||
-                                member?.user?.email.charAt(0)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div className="font-medium">
-                              {member.user.name}
-                            </div>
-                            <div className="text-sm text-muted-foreground">
-                              {member.user.email}
-                            </div>
-                          </div>
+            <TableBody>
+              {filteredMembers?.map((member: any) => (
+                <TableRow key={member.id}>
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={member.user.image || ""} />
+                        <AvatarFallback>
+                          {member.user.name?.charAt(0) ||
+                            member.user.email.charAt(0)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="font-medium">{member.user.name}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {member.user.email}
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            member.role === "OWNER"
-                              ? "default"
-                              : member.role === "ADMIN"
-                              ? "secondary"
-                              : "outline"
-                          }
-                        >
-                          {member.role}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {new Date(member.joinedAt).toLocaleDateString()}
-                      </TableCell>
-                      {canManage && (
-                        <TableCell>
-                          {member.role !== "OWNER" ? (
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem
-                                  onClick={() =>
-                                    handleRoleChange(
-                                      member.userId,
-                                      member.role === "ADMIN"
-                                        ? "MEMBER"
-                                        : "ADMIN"
-                                    )
-                                  }
-                                >
-                                  <UserCog className="mr-2 h-4 w-4" />
-                                  Set as{" "}
-                                  {member.role === "ADMIN" ? "Member" : "Admin"}
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() =>
-                                    setMemberToRemove({
-                                      id: member.userId,
-                                      name: member.user.name,
-                                    })
-                                  }
-                                  className="text-destructive"
-                                >
-                                  <UserMinus className="mr-2 h-4 w-4" />
-                                  Remove
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          ) : isOwner ? (
-                            <span className="text-xs text-muted-foreground">
-                              You
-                            </span>
-                          ) : null}
-                        </TableCell>
-                      )}
-                    </TableRow>
-                  )
-                )}
-              </TableBody>
-            </Table>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={
+                        member.role === "OWNER"
+                          ? "default"
+                          : member.role === "ADMIN"
+                          ? "secondary"
+                          : "outline"
+                      }
+                    >
+                      {member.role}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {new Date(member.joinedAt).toLocaleDateString()}
+                  </TableCell>
+                  {canManage && (
+                    <TableCell>
+                      {member.role !== "OWNER" ? (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleRoleChange(
+                                  member.userId,
+                                  member.role === "ADMIN" ? "MEMBER" : "ADMIN"
+                                )
+                              }
+                            >
+                              <UserCog className="mr-2 h-4 w-4" />
+                              Set as{" "}
+                              {member.role === "ADMIN" ? "Member" : "Admin"}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                setMemberToRemove({
+                                  id: member.userId,
+                                  name: member.user.name,
+                                })
+                              }
+                              className="text-destructive"
+                            >
+                              <UserMinus className="mr-2 h-4 w-4" />
+                              Remove
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      ) : isOwner ? (
+                        <span className="text-xs text-muted-foreground">
+                          You
+                        </span>
+                      ) : null}
+                    </TableCell>
+                  )}
+                </TableRow>
+              ))}
+            </TableBody>
           </div>
         </CardContent>
       </Card>

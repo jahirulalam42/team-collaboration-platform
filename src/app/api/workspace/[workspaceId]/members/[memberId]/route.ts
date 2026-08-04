@@ -2,10 +2,13 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
-
+import { NextRequest } from "next/server"; // import NextRequest
 import { z } from "zod";
 
-type Params = { params: { workspaceId: string; memberId: string } };
+// Params type: params is a Promise
+type Params = {
+  params: Promise<{ workspaceId: string; memberId: string }>;
+};
 
 // Helper: get requester's role in workspace
 async function getRequesterRole(workspaceId: string, userId: string) {
@@ -16,9 +19,9 @@ async function getRequesterRole(workspaceId: string, userId: string) {
 }
 
 // PATCH /api/workspace/[workspaceId]/members/[memberId] — update role
-export async function PATCH(req: Request, { params }: Params) {
+export async function PATCH(req: NextRequest, { params }: Params) {
   try {
-    const { workspaceId } = await params;
+    const { workspaceId, memberId } = await params; // await the promise
     const session = await auth.api.getSession({
       headers: await headers(),
     });
@@ -44,7 +47,7 @@ export async function PATCH(req: Request, { params }: Params) {
 
     // Find the target member
     const target = await prisma.workspaceMember.findUnique({
-      where: { id: params.memberId },
+      where: { id: memberId },
     });
 
     if (!target || target.workspaceId !== workspaceId) {
@@ -66,7 +69,7 @@ export async function PATCH(req: Request, { params }: Params) {
     }
 
     const updated = await prisma.workspaceMember.update({
-      where: { id: params.memberId },
+      where: { id: memberId },
       data: { role },
     });
 
@@ -81,9 +84,9 @@ export async function PATCH(req: Request, { params }: Params) {
 }
 
 // DELETE /api/workspace/[workspaceId]/members/[memberId] — remove member
-export async function DELETE(_req: Request, { params }: Params) {
+export async function DELETE(req: NextRequest, { params }: Params) {
   try {
-    const { workspaceId } = await params;
+    const { workspaceId, memberId } = await params;
     const session = await auth.api.getSession({
       headers: await headers(),
     });
@@ -97,7 +100,7 @@ export async function DELETE(_req: Request, { params }: Params) {
     const requesterRole = await getRequesterRole(workspaceId, session.user.id);
 
     const target = await prisma.workspaceMember.findUnique({
-      where: { id: params.memberId },
+      where: { id: memberId },
     });
 
     if (!target || target.workspaceId !== workspaceId) {
@@ -109,7 +112,7 @@ export async function DELETE(_req: Request, { params }: Params) {
 
     const isSelf = target.userId === session.user.id;
     const canRemove =
-      isSelf || // Anyone can leave
+      isSelf ||
       requesterRole === "OWNER" ||
       (requesterRole === "ADMIN" && target.role === "MEMBER");
 
@@ -130,7 +133,7 @@ export async function DELETE(_req: Request, { params }: Params) {
       );
     }
 
-    await prisma.workspaceMember.delete({ where: { id: params.memberId } });
+    await prisma.workspaceMember.delete({ where: { id: memberId } });
 
     return NextResponse.json({ success: true, message: "Member removed" });
   } catch (error) {

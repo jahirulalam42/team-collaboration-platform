@@ -7,12 +7,13 @@ import { createErrorResponse, ApiError } from "@/lib/errors";
 import { canManage } from "@/lib/utils";
 import prisma from "@/lib/prisma";
 
-type Params = { params: { workspaceId: string } };
+// ✅ params is now a Promise
+type Params = { params: Promise<{ workspaceId: string }> };
 
 /** GET /api/workspace/:id/members */
 export async function GET(_req: NextRequest, { params }: Params) {
   try {
-    const { workspaceId } = await params;
+    const { workspaceId } = await params; // ✅ await the promise
     const session = await requireSession();
     await requireWorkspaceMember(workspaceId, session.user.id);
 
@@ -56,7 +57,6 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     });
     if (!target) throw new ApiError(404, "Member not found");
 
-    // Cannot demote/change someone of equal or higher rank
     if (!canManage(actor.role, target.role)) {
       throw new ApiError(403, "You cannot change the role of this member");
     }
@@ -99,7 +99,6 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     if (!targetUserId)
       throw new ApiError(422, "userId query param is required");
 
-    // User can always remove themselves (leave workspace)
     const isSelf = targetUserId === session.user.id;
 
     if (!isSelf) {
@@ -117,7 +116,6 @@ export async function DELETE(req: NextRequest, { params }: Params) {
       }
     }
 
-    // Prevent the last OWNER from leaving
     if (isSelf && actor.role === "OWNER") {
       const ownerCount = await prisma.workspaceMember.count({
         where: { workspaceId: workspaceId, role: "OWNER" },

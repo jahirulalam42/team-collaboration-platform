@@ -38,7 +38,7 @@ export default function BoardPage({
   const { data: session, loading: sessionLoading } = useAppSelector(
     (state) => state.session
   );
-  const userId = session?.user?.id;
+  const userId: any = session?.user?.id;
 
   const queryClient = useQueryClient();
   const {
