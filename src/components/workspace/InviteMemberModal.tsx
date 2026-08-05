@@ -60,7 +60,13 @@ export function InviteMemberModal({
   const onSubmit = async (data: InviteMemberInput) => {
     try {
       await mutateAsync(data);
-      toast.success(`Invitation sent to ${data.email}`);
+
+      // Updated toast with a description
+      toast.success(`Invitation sent to ${data.email}`, {
+        description:
+          "If they don't see it, ask them to check their Spam or 'All Mail' folder.",
+      });
+
       reset();
       onClose();
     } catch {

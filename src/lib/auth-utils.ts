@@ -2,11 +2,19 @@
 
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 import { randomBytes } from "crypto";
 
-// Initialize Resend with your API key
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Initialize Nodemailer transporter using SMTP environment variables
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: Number(process.env.SMTP_PORT),
+  secure: Number(process.env.SMTP_PORT) === 465, // true for port 465, false for 587 and others
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
 
 // ---------- Password hashing ----------
 export async function hashPassword(password: string): Promise<string> {
@@ -60,7 +68,7 @@ export async function validateVerificationToken(
 ): Promise<{
   valid: boolean;
   error: string | null;
-  record: { userId: string; verificationId: string } | null; // ← added verificationId
+  record: { userId: string; verificationId: string } | null;
 }> {
   const verification = await prisma.verification.findUnique({
     where: { value: token },
@@ -81,34 +89,46 @@ export async function validateVerificationToken(
   return {
     valid: true,
     error: null,
-    record: { userId, verificationId: verification.id }, // ← return ID
+    record: { userId, verificationId: verification.id },
   };
 }
 
-// ---------- Email sender using Resend ----------
+// ---------- Email sender using Nodemailer ----------
 /**
- * Sends a password reset email to the user using Resend.
+ * Sends a password reset email to the user using Nodemailer.
  * @param email - Recipient email address
  * @param token - The password reset token (to be included in the link)
  */
 export async function sendPasswordResetEmail(email: string, token: string) {
   const resetUrl = `${process.env.BETTER_AUTH_URL}/reset-password?token=${token}`;
 
-  await resend.emails.send({
-    from: process.env.RESEND_FROM_EMAIL || "noreply@yourdomain.com",
-    to: email,
-    subject: "Reset your password",
-    html: `
-      <p>You requested a password reset.</p>
-      <p>Click the link below to reset your password (valid for 1 hour):</p>
-      <a href="${resetUrl}">${resetUrl}</a>
-      <p>If you did not request this, please ignore this email.</p>
-    `,
-  });
+  try {
+    await transporter.sendMail({
+      from: process.env.SMTP_FROM,
+      to: email,
+      subject: "Reset your password",
+      html: `
+        <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto;">
+          <h2>Reset your password</h2>
+          <p>You requested a password reset.</p>
+          <p>Click the link below to reset your password (valid for 1 hour):</p>
+          <a href="${resetUrl}" style="display: inline-block; background-color: #3b82f6; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; margin: 16px 0;">Reset Password</a>
+          <p>If the button doesn't work, copy and paste this link into your browser:</p>
+          <p><code style="background: #f3f4f6; padding: 8px; display: block; word-break: break-all;">${resetUrl}</code></p>
+          <p>If you did not request this, please ignore this email.</p>
+        </div>
+      `,
+    });
+  } catch (error) {
+    console.error("Error sending password reset email:", error);
+    throw new Error(
+      "Failed to send password reset email. Please try again later."
+    );
+  }
 }
 
 /**
- * Sends a workspace invitation email using Resend.
+ * Sends a workspace invitation email using Nodemailer.
  * @param to - Recipient email address
  * @param inviteToken - The unique invite token
  * @param workspaceId - Workspace ID (to be included in the accept link)
@@ -130,23 +150,28 @@ export async function sendInviteEmail({
 }) {
   const acceptUrl = `${process.env.BETTER_AUTH_URL}/invite/accept?workspaceId=${workspaceId}&token=${inviteToken}`;
 
-  await resend.emails.send({
-    from: process.env.RESEND_FROM_EMAIL || "noreply@yourdomain.com",
-    to,
-    subject: `You're invited to join ${workspaceName} on SyncSpace`,
-    html: `
-      <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto;">
-        <h2>You're invited!</h2>
-        <p><strong>${inviterName}</strong> has invited you to join the workspace <strong>${workspaceName}</strong> on SyncSpace.</p>
-        <p>Click the button below to accept the invitation:</p>
-        <a href="${acceptUrl}" style="display: inline-block; background-color: #3b82f6; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; margin: 16px 0;">Accept Invitation</a>
-        <p>If the button doesn't work, copy and paste this link into your browser:</p>
-        <p><code style="background: #f3f4f6; padding: 8px; display: block; word-break: break-all;">${acceptUrl}</code></p>
-        <p>This invite expires in <strong>7 days</strong>.</p>
-        <p>If you don't have a SyncSpace account yet, you'll be prompted to create one before joining.</p>
-        <hr />
-        <p style="font-size: 12px; color: #6b7280;">You received this email because someone invited you to a workspace on SyncSpace.</p>
-      </div>
-    `,
-  });
+  try {
+    await transporter.sendMail({
+      from: process.env.SMTP_FROM,
+      to,
+      subject: `You're invited to join ${workspaceName} on SyncSpace`,
+      html: `
+        <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto;">
+          <h2>You're invited!</h2>
+          <p><strong>${inviterName}</strong> has invited you to join the workspace <strong>${workspaceName}</strong> on SyncSpace.</p>
+          <p>Click the button below to accept the invitation:</p>
+          <a href="${acceptUrl}" style="display: inline-block; background-color: #3b82f6; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; margin: 16px 0;">Accept Invitation</a>
+          <p>If the button doesn't work, copy and paste this link into your browser:</p>
+          <p><code style="background: #f3f4f6; padding: 8px; display: block; word-break: break-all;">${acceptUrl}</code></p>
+          <p>This invite expires in <strong>7 days</strong>.</p>
+          <p>If you don't have a SyncSpace account yet, you'll be prompted to create one before joining.</p>
+          <hr />
+          <p style="font-size: 12px; color: #6b7280;">You received this email because someone invited you to a workspace on SyncSpace.</p>
+        </div>
+      `,
+    });
+  } catch (error) {
+    console.error("Error sending invite email:", error);
+    throw new Error("Failed to send invitation email. Please try again later.");
+  }
 }
